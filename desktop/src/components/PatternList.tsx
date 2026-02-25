@@ -1,0 +1,116 @@
+import { Pattern, getPatternColor } from "./SheetMusicViewer";
+
+interface Props {
+  patterns: Pattern[];
+  highlightedPatternId: number | null;
+  onPatternClick: (patternId: number | null) => void;
+  enabledPatterns: Set<number>;
+  onTogglePattern: (patternId: number) => void;
+}
+
+export function PatternList({
+  patterns,
+  highlightedPatternId,
+  onPatternClick,
+  enabledPatterns,
+  onTogglePattern,
+}: Props) {
+  if (patterns.length === 0) {
+    return (
+      <div style={{ padding: "16px", color: "#666" }}>
+        No patterns found. Load a MusicXML file to analyze.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "8px" }}>
+      <div
+        style={{
+          marginBottom: "8px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <strong>Patterns ({patterns.length})</strong>
+        {highlightedPatternId !== null && (
+          <button
+            onClick={() => onPatternClick(null)}
+            style={{
+              padding: "4px 8px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            Show All
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {patterns.map((pattern) => {
+          const color = getPatternColor(pattern.id);
+          const isHighlighted = highlightedPatternId === pattern.id;
+          const isEnabled = enabledPatterns.has(pattern.id);
+
+          return (
+            <div
+              key={pattern.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px",
+                borderRadius: "4px",
+                backgroundColor: isHighlighted ? "#e0e0e0" : "#f5f5f5",
+                cursor: "pointer",
+              }}
+              onClick={() =>
+                onPatternClick(isHighlighted ? null : pattern.id)
+              }
+            >
+              <input
+                type="checkbox"
+                checked={isEnabled}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onTogglePattern(pattern.id);
+                }}
+                style={{ cursor: "pointer" }}
+              />
+
+              <div
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  borderRadius: "3px",
+                  backgroundColor: color.replace("0.3", "0.8"),
+                  flexShrink: 0,
+                }}
+              />
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500, fontSize: "14px" }}>
+                  {pattern.length} notes × {pattern.count}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#666",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {pattern.notes.slice(0, 6).map((n) => n.pitch).join(" ")}
+                  {pattern.notes.length > 6 && "..."}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
