@@ -5,14 +5,22 @@ import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/PatternList";
 import "./App.css";
 
+interface PartPatterns {
+  part_index: number;
+  part_name: string;
+  patterns: Pattern[];
+}
+
 interface AnalysisResult {
   file: string;
-  patterns: Pattern[];
+  treble: PartPatterns;
+  bass: PartPatterns;
 }
 
 function App() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
-  const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [treblePatterns, setTreblePatterns] = useState<Pattern[]>([]);
+  const [bassPatterns, setBassPatterns] = useState<Pattern[]>([]);
   const [highlightedPatternId, setHighlightedPatternId] = useState<
     number | null
   >(null);
@@ -25,9 +33,18 @@ function App() {
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
 
+  // Combine all patterns for the viewer
+  const allPatterns = useMemo(
+    () => [
+      ...treblePatterns.map((pattern) => ({ ...pattern, partIndex: 0 })),
+      ...bassPatterns.map((pattern) => ({ ...pattern, partIndex: 1 })),
+    ],
+    [treblePatterns, bassPatterns]
+  );
+
   const filteredPatterns = useMemo(
-    () => patterns.filter((p) => enabledPatterns.has(p.id)),
-    [patterns, enabledPatterns]
+    () => allPatterns.filter((p) => enabledPatterns.has(p.id)),
+    [allPatterns, enabledPatterns]
   );
 
   async function handleOpenFile() {
@@ -57,15 +74,21 @@ function App() {
       const result = await invoke<AnalysisResult>("analyze_music", { path });
       console.log("result:", result);
 
-      setPatterns(result.patterns);
+      setTreblePatterns(result.treble.patterns);
+      setBassPatterns(result.bass.patterns);
 
       // Enable all patterns by default
-      setEnabledPatterns(new Set(result.patterns.map((p) => p.id)));
+      const allIds = [
+        ...result.treble.patterns.map((p) => p.id),
+        ...result.bass.patterns.map((p) => p.id),
+      ];
+      setEnabledPatterns(new Set(allIds));
       setHighlightedPatternId(null);
     } catch (err) {
       setError(String(err));
       setMusicXml(null);
-      setPatterns([]);
+      setTreblePatterns([]);
+      setBassPatterns([]);
     } finally {
       setIsLoading(false);
     }
@@ -135,16 +158,39 @@ function App() {
             width: "280px",
             backgroundColor: "white",
             borderRight: "1px solid #ddd",
-            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <PatternList
-            patterns={patterns}
-            highlightedPatternId={highlightedPatternId}
-            onPatternClick={setHighlightedPatternId}
-            enabledPatterns={enabledPatterns}
-            onTogglePattern={handleTogglePattern}
-          />
+          {/* Treble patterns - top half */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              borderBottom: "1px solid #ddd",
+            }}
+          >
+            <PatternList
+              title="Treble"
+              patterns={treblePatterns}
+              highlightedPatternId={highlightedPatternId}
+              onPatternClick={setHighlightedPatternId}
+              enabledPatterns={enabledPatterns}
+              onTogglePattern={handleTogglePattern}
+            />
+          </div>
+
+          {/* Bass patterns - bottom half */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <PatternList
+              title="Bass"
+              patterns={bassPatterns}
+              highlightedPatternId={highlightedPatternId}
+              onPatternClick={setHighlightedPatternId}
+              enabledPatterns={enabledPatterns}
+              onTogglePattern={handleTogglePattern}
+            />
+          </div>
         </aside>
 
         {/* Sheet music viewer */}

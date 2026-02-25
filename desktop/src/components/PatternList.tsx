@@ -1,6 +1,7 @@
 import { Pattern, getPatternColor } from "./SheetMusicViewer";
 
 interface Props {
+  title: string;
   patterns: Pattern[];
   highlightedPatternId: number | null;
   onPatternClick: (patternId: number | null) => void;
@@ -9,20 +10,13 @@ interface Props {
 }
 
 export function PatternList({
+  title,
   patterns,
   highlightedPatternId,
   onPatternClick,
   enabledPatterns,
   onTogglePattern,
 }: Props) {
-  if (patterns.length === 0) {
-    return (
-      <div style={{ padding: "16px", color: "#666" }}>
-        No patterns found. Load a MusicXML file to analyze.
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: "8px" }}>
       <div
@@ -33,7 +27,7 @@ export function PatternList({
           alignItems: "center",
         }}
       >
-        <strong>Patterns ({patterns.length})</strong>
+        <strong>{title} ({patterns.length})</strong>
         {highlightedPatternId !== null && (
           <button
             onClick={() => onPatternClick(null)}
@@ -48,6 +42,11 @@ export function PatternList({
         )}
       </div>
 
+      {patterns.length === 0 ? (
+        <div style={{ padding: "8px", color: "#999", fontSize: "13px" }}>
+          No patterns found
+        </div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {patterns.map((pattern) => {
           const color = getPatternColor(pattern.id);
@@ -111,6 +110,7 @@ export function PatternList({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
+import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
 
 export interface NoteLocator {
   index: number;
@@ -10,10 +11,32 @@ export interface NoteLocator {
 
 export interface Pattern {
   id: number;
+  partIndex: number; // 0 = treble, 1 = bass
   length: number;
   count: number;
   positions: number[];
   notes: NoteLocator[];
+}
+
+// Position data for rendering React overlays
+export interface NotePosition {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  patternId: number;
+  color: string;
+}
+
+// Marker for pattern start/end
+interface PatternMarker {
+  type: "start" | "end";
+  x: number;
+  y: number;
+  patternId: number;
+  occurrenceIndex: number;
+  color: string;
 }
 
 interface Props {
@@ -21,9 +44,24 @@ interface Props {
   patterns: Pattern[];
   highlightedPatternId: number | null;
   patternColors: Map<number, string>;
+  // Optional: render custom overlay at note positions
+  renderOverlay?: (positions: NotePosition[]) => React.ReactNode;
 }
 
-const COLORS = [
+// Solid colors for SVG coloring
+const COLORS_SOLID = [
+  "#FF6B6B",
+  "#4ECDC4",
+  "#FFE66D",
+  "#AA80FF",
+  "#FFA69E",
+  "#80DEEA",
+  "#FFB74D",
+  "#95AFC0",
+];
+
+// Transparent colors for div overlays
+const COLORS_ALPHA = [
   "rgba(255, 107, 107, 0.3)",
   "rgba(78, 205, 196, 0.3)",
   "rgba(255, 230, 109, 0.3)",
@@ -34,8 +72,9 @@ const COLORS = [
   "rgba(149, 175, 192, 0.3)",
 ];
 
-export function getPatternColor(patternId: number): string {
-  return COLORS[patternId % COLORS.length];
+export function getPatternColor(patternId: number, solid = false): string {
+  const colors = solid ? COLORS_SOLID : COLORS_ALPHA;
+  return colors[patternId % colors.length];
 }
 
 export function SheetMusicViewer({
@@ -43,16 +82,20 @@ export function SheetMusicViewer({
   patterns,
   highlightedPatternId,
   patternColors,
+  renderOverlay,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const osmdContainerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [notePositions, setNotePositions] = useState<NotePosition[]>([]);
+  const [markers, setMarkers] = useState<PatternMarker[]>([]);
 
   // Initialize OpenSheetMusicDisplay when musicXml changes
   useEffect(() => {
-    if (!containerRef.current || !musicXml) return;
+    if (!osmdContainerRef.current || !musicXml) return;
 
-    const osmd = new OpenSheetMusicDisplay(containerRef.current, {
+    const osmd = new OpenSheetMusicDisplay(osmdContainerRef.current, {
       autoResize: true,
       drawTitle: true,
       drawComposer: true,
@@ -78,103 +121,228 @@ export function SheetMusicViewer({
     };
   }, [musicXml]);
 
-  // Draw highlighting rectangles
-  const drawHighlights = useCallback(() => {
+  // Build set of note indices that belong to patterns + start/end markers
+  // Keys are "partIndex-noteIndex" to support both staves
+  const { patternNoteIndices, patternBoundaries } = useMemo(() => {
+    const indexToPattern = new Map<
+      string,
+      { patternId: number; color: string }
+    >();
+    // Map of "partIndex-noteIndex" -> marker info for start/end positions
+    const boundaries = new Map<
+      string,
+      {
+        type: "start" | "end";
+        patternId: number;
+        occurrenceIndex: number;
+        color: string;
+      }
+    >();
+
+    const patternsToUse =
+      highlightedPatternId !== null
+        ? patterns.filter((p) => p.id === highlightedPatternId)
+        : patterns;
+
+    for (const pattern of patternsToUse) {
+      const color =
+        patternColors.get(pattern.id) || getPatternColor(pattern.id, true);
+      const partIndex = pattern.partIndex;
+
+      pattern.positions.forEach((startPos, occurrenceIndex) => {
+        const endPos = startPos + pattern.length - 1;
+
+        // Mark start and end positions with composite key
+        const startKey = `${partIndex}-${startPos}`;
+        const endKey = `${partIndex}-${endPos}`;
+        boundaries.set(startKey, {
+          type: "start",
+          patternId: pattern.id,
+          occurrenceIndex,
+          color,
+        });
+        boundaries.set(endKey, {
+          type: "end",
+          patternId: pattern.id,
+          occurrenceIndex,
+          color,
+        });
+
+        for (let i = 0; i < pattern.length; i++) {
+          const key = `${partIndex}-${startPos + i}`;
+          indexToPattern.set(key, { patternId: pattern.id, color });
+        }
+      });
+    }
+    return {
+      patternNoteIndices: indexToPattern,
+      patternBoundaries: boundaries,
+    };
+  }, [patterns, highlightedPatternId, patternColors]);
+
+  // Color notes via OSMD API
+  const applyColors = useCallback(() => {
     if (!isLoaded || !osmdRef.current || !containerRef.current) return;
-
-    const container = containerRef.current;
-
-    // Remove existing highlights
-    const existingHighlights = container.querySelectorAll(".pattern-highlight");
-    existingHighlights.forEach((el) => el.remove());
 
     const osmd = osmdRef.current;
     const graphic = osmd.GraphicSheet;
     if (!graphic) return;
 
-    // Get all vertical containers (each represents a beat position)
-    const containers = graphic.VerticalGraphicalStaffEntryContainers;
+    const numStaves = graphic.MeasureList[0]?.length || 1;
 
-    // Filter patterns to highlight
-    const patternsToHighlight =
-      highlightedPatternId !== null
-        ? patterns.filter((p) => p.id === highlightedPatternId)
-        : patterns;
+    for (let staffIndex = 0; staffIndex < numStaves; staffIndex++) {
+      let noteIndex = 0;
 
-    // Find the SVG element
-    const svgElement = container.querySelector("svg");
+      for (const measureList of graphic.MeasureList) {
+        const measure = measureList[staffIndex];
+        if (!measure) continue;
+
+        for (const staffEntry of measure.staffEntries) {
+          if (!staffEntry) continue;
+
+          for (const voiceEntry of staffEntry.graphicalVoiceEntries) {
+            const hasNotes = voiceEntry.notes.some(
+              (n) => !n.sourceNote.isRest()
+            );
+            if (!hasNotes) continue;
+
+            const key = `${staffIndex}-${noteIndex}`;
+            const patternInfo = patternNoteIndices.get(key);
+
+            for (const graphicalNote of voiceEntry.notes) {
+              if (graphicalNote.sourceNote.isRest()) continue;
+
+              if (patternInfo) {
+                graphicalNote.sourceNote.NoteheadColor = patternInfo.color;
+              } else {
+                graphicalNote.sourceNote.NoteheadColor = "black";
+              }
+            }
+
+            noteIndex++;
+          }
+        }
+      }
+    }
+
+    osmd.render();
+  }, [isLoaded, patternNoteIndices]);
+
+  // Extract marker positions (called after render)
+  const updateMarkerPositions = useCallback(() => {
+    if (!isLoaded || !osmdRef.current || !containerRef.current || !osmdContainerRef.current) return;
+
+    console.log("UPDATING MARKER POSITIONS");
+
+    const osmd = osmdRef.current;
+    const graphic = osmd.GraphicSheet;
+    if (!graphic) return;
+
+    const container = containerRef.current;
+    const osmdContainer = osmdContainerRef.current;
+    const svgElement = osmdContainer.querySelector("svg");
     if (!svgElement) return;
 
     const svgRect = svgElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
+    const unitToPixel =
+      svgRect.width / (svgElement.viewBox?.baseVal?.width || svgRect.width);
 
-    for (const pattern of patternsToHighlight) {
-      const color =
-        patternColors.get(pattern.id) || getPatternColor(pattern.id);
+    const positions: NotePosition[] = [];
+    const newMarkers: PatternMarker[] = [];
+    const numStaves = graphic.MeasureList[0]?.length || 1;
 
-      // For each occurrence of this pattern
-      for (const startPos of pattern.positions) {
-        const endPos = startPos + pattern.length - 1;
+    for (let staffIndex = 0; staffIndex < numStaves; staffIndex++) {
+      let noteIndex = 0;
 
-        // Get bounding boxes for start and end positions
-        if (startPos >= containers.length || endPos >= containers.length)
-          continue;
+      for (const measureList of graphic.MeasureList) {
+        const measure = measureList[staffIndex];
+        if (!measure) continue;
 
-        const startContainer = containers[startPos];
-        const endContainer = containers[endPos];
+        for (const staffEntry of measure.staffEntries) {
+          if (!staffEntry) continue;
 
-        if (!startContainer || !endContainer) continue;
+          for (const voiceEntry of staffEntry.graphicalVoiceEntries) {
+            const hasNotes = voiceEntry.notes.some(
+              (n) => !n.sourceNote.isRest()
+            );
+            if (!hasNotes) continue;
 
-        // Get staff entries from containers
-        const startEntries = startContainer.StaffEntries;
-        const endEntries = endContainer.StaffEntries;
+            const key = `${staffIndex}-${noteIndex}`;
+            const patternInfo = patternNoteIndices.get(key);
+            const boundaryInfo = patternBoundaries.get(key);
 
-        if (!startEntries?.length || !endEntries?.length) continue;
+            if (staffEntry.PositionAndShape) {
+              const box = staffEntry.PositionAndShape;
+              const x =
+                svgRect.left -
+                containerRect.left +
+                box.AbsolutePosition.x * unitToPixel * 10;
+              const y =
+                svgRect.top -
+                containerRect.top +
+                box.AbsolutePosition.y * unitToPixel * 10;
 
-        // Get bounding boxes
-        const startEntry = startEntries[0];
-        const endEntry = endEntries[0];
+              if (patternInfo) {
+                positions.push({
+                  index: noteIndex,
+                  x,
+                  y,
+                  width: box.Size.width * unitToPixel * 10,
+                  height: box.Size.height * unitToPixel * 10,
+                  patternId: patternInfo.patternId,
+                  color: patternInfo.color,
+                });
+              }
 
-        if (!startEntry?.PositionAndShape || !endEntry?.PositionAndShape)
-          continue;
+              if (boundaryInfo) {
+                newMarkers.push({
+                  type: boundaryInfo.type,
+                  x,
+                  y,
+                  patternId: boundaryInfo.patternId,
+                  occurrenceIndex: boundaryInfo.occurrenceIndex,
+                  color: boundaryInfo.color,
+                });
+              }
+            }
 
-        const startBox = startEntry.PositionAndShape;
-        const endBox = endEntry.PositionAndShape;
-
-        // Convert OSMD coordinates to screen coordinates
-        // OSMD uses a unit system where 10 units = 1 staff line space
-        const unitToPixel =
-          svgRect.width / (svgElement.viewBox?.baseVal?.width || svgRect.width);
-
-        const startX = startBox.AbsolutePosition.x * unitToPixel * 10;
-        const endX =
-          (endBox.AbsolutePosition.x + endBox.Size.width) * unitToPixel * 10;
-        const y = startBox.AbsolutePosition.y * unitToPixel * 10;
-        const height = startBox.Size.height * unitToPixel * 10;
-
-        // Create highlight element
-        const highlight = document.createElement("div");
-        highlight.className = "pattern-highlight";
-        highlight.style.cssText = `
-          position: absolute;
-          left: ${svgRect.left - containerRect.left + startX - 5}px;
-          top: ${svgRect.top - containerRect.top + y - 5}px;
-          width: ${endX - startX + 10}px;
-          height: ${Math.max(height + 10, 40)}px;
-          background-color: ${color};
-          border-radius: 4px;
-          pointer-events: none;
-          z-index: 1;
-        `;
-
-        container.appendChild(highlight);
+            noteIndex++;
+          }
+        }
       }
     }
-  }, [isLoaded, patterns, highlightedPatternId, patternColors]);
 
+    setNotePositions(positions);
+    setMarkers(newMarkers);
+  }, [isLoaded, patternNoteIndices, patternBoundaries]);
+
+  console.log("MARKERS: ", markers);
+
+  // Only update marker positions on resize - OSMD handles its own resize via autoResize
+  const onResize = useDebounceCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateMarkerPositions();
+      });
+    });
+  }, 300);
+
+  useResizeObserver({
+    ref: containerRef as React.RefObject<HTMLElement>,
+    onResize,
+  });
+
+  // Apply colors first, then update positions after render completes
   useEffect(() => {
-    drawHighlights();
-  }, [drawHighlights]);
+    applyColors();
+    // Double requestAnimationFrame to ensure layout is fully settled
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateMarkerPositions();
+      });
+    });
+  }, [applyColors, updateMarkerPositions]);
 
   return (
     <div
@@ -187,6 +355,8 @@ export function SheetMusicViewer({
         backgroundColor: "white",
       }}
     >
+      {/* OSMD renders into this div - separate from React-managed markers */}
+      <div ref={osmdContainerRef} />
       {!musicXml && (
         <div
           style={{
@@ -200,6 +370,33 @@ export function SheetMusicViewer({
           Select a MusicXML file to view
         </div>
       )}
+      {/* Render start/end markers for pattern groups */}
+      {markers.map((marker, i) => (
+        <div
+          key={`marker-${i}`}
+          style={{
+            position: "absolute",
+            left: marker.x - 6,
+            top: marker.type === "start" ? marker.y - 20 : marker.y + 35,
+            width: 0,
+            height: 0,
+            borderLeft: "8px solid transparent",
+            borderRight: "8px solid transparent",
+            ...(marker.type === "start"
+              ? { borderTop: `12px solid ${marker.color}` }
+              : { borderBottom: `12px solid ${marker.color}` }),
+            pointerEvents: "none",
+            zIndex: 12,
+          }}
+          title={`${marker.type === "start" ? "Start" : "End"} of pattern ${
+            marker.patternId + 1
+          }, occurrence ${marker.occurrenceIndex + 1}`}
+        />
+      ))}
+      {/* Render custom React overlays at note positions */}
+      {renderOverlay &&
+        notePositions.length > 0 &&
+        renderOverlay(notePositions)}
     </div>
   );
 }

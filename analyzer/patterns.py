@@ -1,7 +1,7 @@
 """Find exact repeated note sequences in MusicXML files."""
 
 from dataclasses import dataclass
-from music21 import converter, chord
+from music21 import converter, chord, stream
 
 
 @dataclass
@@ -12,6 +12,21 @@ class Repeat:
     notes: list
 
 
+@dataclass
+class PartRepeats:
+    """Patterns found in a single part/staff."""
+    part_index: int
+    part_name: str
+    repeats: list[Repeat]
+
+
+@dataclass
+class AllPartsRepeats:
+    """Patterns found in all parts of a score."""
+    treble: PartRepeats | None  # First part (usually treble/right hand)
+    bass: PartRepeats | None    # Second part (usually bass/left hand)
+
+
 def extract_note_signature(n) -> tuple:
     """Extract (pitch_midi, duration) from note or chord."""
     if isinstance(n, chord.Chord):
@@ -19,27 +34,16 @@ def extract_note_signature(n) -> tuple:
     return (n.pitch.midi, n.quarterLength)
 
 
-def find_repeats(
-    musicxml_path: str,
-    min_length: int = 4,
-    part_index: int = 0,
-) -> list[Repeat]:
-    """Find maximal exact repeated note sequences.
-
-    Finds the longest patterns that repeat, without arbitrary max length.
-    Patterns are maximal - they can't be extended further while still repeating.
+def _find_repeats_in_part(part: stream.Part, min_length: int = 4) -> list[Repeat]:
+    """Find maximal exact repeated note sequences in a single part.
 
     Args:
-        musicxml_path: Path to MusicXML file
+        part: music21 Part object to analyze
         min_length: Minimum pattern length in notes
-        part_index: Which part to analyze (0 = first part)
 
     Returns:
         List of Repeat objects sorted by significance (length * count)
     """
-    score = converter.parse(musicxml_path)
-    part = score.parts[part_index]
-
     # Extract notes with signatures
     notes = []
     for n in part.recurse().notes:
@@ -48,6 +52,9 @@ def find_repeats(
 
     sigs = [n[0] for n in notes]
     n_notes = len(notes)
+
+    if n_notes == 0:
+        return []
 
     # Build index: signature -> positions
     sig_positions: dict[tuple, list[int]] = {}
@@ -128,6 +135,73 @@ def find_repeats(
     return repeats
 
 
+def find_repeats(
+    musicxml_path: str,
+    min_length: int = 4,
+    part_index: int = 0,
+) -> list[Repeat]:
+    """Find maximal exact repeated note sequences in a single part.
+
+    Args:
+        musicxml_path: Path to MusicXML file
+        min_length: Minimum pattern length in notes
+        part_index: Which part to analyze (0 = first part)
+
+    Returns:
+        List of Repeat objects sorted by significance (length * count)
+    """
+    score = converter.parse(musicxml_path)
+    if part_index >= len(score.parts):
+        return []
+    return _find_repeats_in_part(score.parts[part_index], min_length)
+
+
+def find_repeats_all_parts(
+    musicxml_path: str,
+    min_length: int = 4,
+) -> AllPartsRepeats:
+    """Find patterns in both treble and bass clef separately.
+
+    Args:
+        musicxml_path: Path to MusicXML file
+        min_length: Minimum pattern length in notes
+
+    Returns:
+        AllPartsRepeats with separate pattern arrays for treble and bass
+    """
+    score = converter.parse(musicxml_path)
+    num_parts = len(score.parts)
+
+    treble = None
+    bass = None
+
+    if num_parts >= 1:
+        part = score.parts[0]
+        part_name = part.partName or "Treble"
+        repeats = _find_repeats_in_part(part, min_length)
+        treble = PartRepeats(part_index=0, part_name=part_name, repeats=repeats)
+
+    if num_parts >= 2:
+        part = score.parts[1]
+        part_name = part.partName or "Bass"
+        repeats = _find_repeats_in_part(part, min_length)
+        bass = PartRepeats(part_index=1, part_name=part_name, repeats=repeats)
+
+    return AllPartsRepeats(treble=treble, bass=bass)
+
+
+def _print_repeats(repeats: list[Repeat], limit: int = 10) -> None:
+    """Print repeat patterns."""
+    for r in repeats[:limit]:
+        pitches = []
+        for n in r.notes:
+            if isinstance(n, chord.Chord):
+                pitches.append(n.pitches[-1].nameWithOctave)
+            else:
+                pitches.append(n.pitch.nameWithOctave)
+        print(f"  [{r.length} notes, {r.count}x] {' '.join(pitches)}")
+
+
 if __name__ == "__main__":
     import sys
 
@@ -138,14 +212,14 @@ if __name__ == "__main__":
     path = sys.argv[1]
     min_len = int(sys.argv[2]) if len(sys.argv) > 2 else 4
 
-    repeats = find_repeats(path, min_len)
+    result = find_repeats_all_parts(path, min_len)
 
-    print(f"Found {len(repeats)} maximal repeated patterns\n")
-    for r in repeats[:15]:
-        pitches = []
-        for n in r.notes:
-            if isinstance(n, chord.Chord):
-                pitches.append(n.pitches[-1].nameWithOctave)
-            else:
-                pitches.append(n.pitch.nameWithOctave)
-        print(f"[{r.length} notes, {r.count}x] {' '.join(pitches)}")
+    if result.treble:
+        print(f"=== {result.treble.part_name} (Part {result.treble.part_index}) ===")
+        print(f"Found {len(result.treble.repeats)} patterns\n")
+        _print_repeats(result.treble.repeats)
+
+    if result.bass:
+        print(f"\n=== {result.bass.part_name} (Part {result.bass.part_index}) ===")
+        print(f"Found {len(result.bass.repeats)} patterns\n")
+        _print_repeats(result.bass.repeats)

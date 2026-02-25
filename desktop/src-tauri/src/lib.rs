@@ -20,9 +20,17 @@ pub struct Pattern {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct StaffPatternData {
+    pub part_index: i32,
+    pub part_name: String,
+    pub patterns: Vec<Pattern>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AnalysisResult {
     pub file: String,
-    pub patterns: Vec<Pattern>,
+    pub treble: StaffPatternData,
+    pub bass: StaffPatternData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
