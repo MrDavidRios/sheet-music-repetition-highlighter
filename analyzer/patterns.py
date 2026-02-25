@@ -91,26 +91,25 @@ def find_repeats(
                 pattern_groups[pattern] = [i, j]
 
     # Filter to maximal patterns only
-    # A pattern is maximal if no superpattern contains all its occurrences
+    # A pattern is maximal if it's not a substring of any longer repeating pattern
     patterns = sorted(pattern_groups.keys(), key=len, reverse=True)
     maximal: dict[tuple, list[int]] = {}
 
+    def is_substring(short: tuple, long: tuple) -> bool:
+        """Check if short appears anywhere in long."""
+        for i in range(len(long) - len(short) + 1):
+            if long[i:i + len(short)] == short:
+                return True
+        return False
+
     for pattern in patterns:
         positions = sorted(pattern_groups[pattern])
-        # Check if all positions are covered by a longer pattern
-        dominated = False
-        for longer in maximal:
-            if len(longer) > len(pattern):
-                longer_positions = maximal[longer]
-                # Check if pattern is substring of longer at all its positions
-                if all(
-                    any(lp <= p < lp + len(longer) - len(pattern) + 1
-                        and longer[p - lp:p - lp + len(pattern)] == pattern
-                        for lp in longer_positions)
-                    for p in positions
-                ):
-                    dominated = True
-                    break
+        # Check if pattern is substring of any longer pattern
+        dominated = any(
+            is_substring(pattern, longer)
+            for longer in maximal
+            if len(longer) > len(pattern)
+        )
         if not dominated:
             maximal[pattern] = positions
 
