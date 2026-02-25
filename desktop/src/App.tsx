@@ -1,50 +1,155 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import { useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
+import { PatternList } from "./components/PatternList";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+interface AnalysisResult {
+  file: string;
+  patterns: Pattern[];
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+function App() {
+  const [musicXml, setMusicXml] = useState<string | null>(null);
+  const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [highlightedPatternId, setHighlightedPatternId] = useState<number | null>(null);
+  const [enabledPatterns, setEnabledPatterns] = useState<Set<number>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+
+  const patternColors = useMemo(() => new Map<number, string>(), []);
+
+  const filteredPatterns = useMemo(
+    () => patterns.filter((p) => enabledPatterns.has(p.id)),
+    [patterns, enabledPatterns]
+  );
+
+  async function handleOpenFile() {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "MusicXML",
+          extensions: ["musicxml", "xml", "mxl"],
+        },
+      ],
+    });
+
+    if (!selected) return;
+
+    const path = typeof selected === "string" ? selected : selected;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Read the MusicXML file
+      const content = await invoke<string>("read_file", { path });
+      setMusicXml(content);
+      setFileName(path.split("/").pop() || path);
+
+      // Analyze for patterns
+      const result = await invoke<AnalysisResult>("analyze_music", { path });
+      setPatterns(result.patterns);
+
+      // Enable all patterns by default
+      setEnabledPatterns(new Set(result.patterns.map((p) => p.id)));
+      setHighlightedPatternId(null);
+    } catch (err) {
+      setError(String(err));
+      setMusicXml(null);
+      setPatterns([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleTogglePattern(patternId: number) {
+    setEnabledPatterns((prev) => {
+      const next = new Set(prev);
+      if (next.has(patternId)) {
+        next.delete(patternId);
+      } else {
+        next.add(patternId);
+      }
+      return next;
+    });
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        backgroundColor: "#f0f0f0",
+      }}
+    >
+      {/* Header */}
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+          padding: "12px 16px",
+          backgroundColor: "#333",
+          color: "white",
         }}
       >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+        <h1 style={{ margin: 0, fontSize: "18px" }}>Music Repetition Highlighter</h1>
+
+        <button
+          onClick={handleOpenFile}
+          disabled={isLoading}
+          style={{
+            padding: "8px 16px",
+            cursor: isLoading ? "wait" : "pointer",
+          }}
+        >
+          {isLoading ? "Loading..." : "Open File"}
+        </button>
+
+        {fileName && (
+          <span style={{ fontSize: "14px", color: "#aaa" }}>{fileName}</span>
+        )}
+
+        {error && (
+          <span style={{ fontSize: "14px", color: "#ff6b6b" }}>{error}</span>
+        )}
+      </header>
+
+      {/* Main content */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Sidebar */}
+        <aside
+          style={{
+            width: "280px",
+            backgroundColor: "white",
+            borderRight: "1px solid #ddd",
+            overflowY: "auto",
+          }}
+        >
+          <PatternList
+            patterns={patterns}
+            highlightedPatternId={highlightedPatternId}
+            onPatternClick={setHighlightedPatternId}
+            enabledPatterns={enabledPatterns}
+            onTogglePattern={handleTogglePattern}
+          />
+        </aside>
+
+        {/* Sheet music viewer */}
+        <main style={{ flex: 1, overflow: "hidden" }}>
+          <SheetMusicViewer
+            musicXml={musicXml}
+            patterns={filteredPatterns}
+            highlightedPatternId={highlightedPatternId}
+            patternColors={patternColors}
+          />
+        </main>
+      </div>
+    </div>
   );
 }
 
