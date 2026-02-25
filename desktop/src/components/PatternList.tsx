@@ -1,4 +1,5 @@
-import { Pattern, getPatternColor } from "./SheetMusicViewer";
+import { getPatternColor } from "../utils/color";
+import { Pattern } from "./SheetMusicViewer";
 
 interface Props {
   title: string;
@@ -27,7 +28,9 @@ export function PatternList({
           alignItems: "center",
         }}
       >
-        <strong>{title} ({patterns.length})</strong>
+        <strong>
+          {title} ({patterns.length})
+        </strong>
         {highlightedPatternId !== null && (
           <button
             onClick={() => onPatternClick(null)}
@@ -47,69 +50,72 @@ export function PatternList({
           No patterns found
         </div>
       ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        {patterns.map((pattern) => {
-          const color = getPatternColor(pattern.id);
-          const isHighlighted = highlightedPatternId === pattern.id;
-          const isEnabled = enabledPatterns.has(pattern.id);
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {patterns.map((pattern) => {
+            const color = getPatternColor(pattern.id);
+            const isHighlighted = highlightedPatternId === pattern.id;
+            const isEnabled = enabledPatterns.has(pattern.id);
 
-          return (
-            <div
-              key={pattern.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px",
-                borderRadius: "4px",
-                backgroundColor: isHighlighted ? "#e0e0e0" : "#f5f5f5",
-                cursor: "pointer",
-              }}
-              onClick={() =>
-                onPatternClick(isHighlighted ? null : pattern.id)
-              }
-            >
-              <input
-                type="checkbox"
-                checked={isEnabled}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onTogglePattern(pattern.id);
-                }}
-                style={{ cursor: "pointer" }}
-              />
-
+            return (
               <div
+                key={pattern.id}
                 style={{
-                  width: "16px",
-                  height: "16px",
-                  borderRadius: "3px",
-                  backgroundColor: color.replace("0.3", "0.8"),
-                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  backgroundColor: isHighlighted ? "#e0e0e0" : "#f5f5f5",
+                  cursor: "pointer",
                 }}
-              />
+                onClick={() =>
+                  onPatternClick(isHighlighted ? null : pattern.id)
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onTogglePattern(pattern.id);
+                  }}
+                  style={{ cursor: "pointer" }}
+                />
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, fontSize: "14px" }}>
-                  {pattern.length} notes × {pattern.count}
-                </div>
                 <div
                   style={{
-                    fontSize: "12px",
-                    color: "#666",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "3px",
+                    backgroundColor: color.replace("0.3", "0.8"),
+                    flexShrink: 0,
                   }}
-                >
-                  {pattern.notes.slice(0, 6).map((n) => n.pitch).join(" ")}
-                  {pattern.notes.length > 6 && "..."}
+                />
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 500, fontSize: "14px" }}>
+                    {pattern.length} notes × {pattern.count}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#666",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {pattern.notes
+                      .slice(0, 6)
+                      .map((n) => n.pitch)
+                      .join(" ")}
+                    {pattern.notes.length > 6 && "..."}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

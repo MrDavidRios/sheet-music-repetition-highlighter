@@ -2,7 +2,12 @@
 
 import os
 import shutil
+from pathlib import Path
+import subprocess
+from typing import List
 import xml.etree.ElementTree as ET
+
+import pymupdf
 
 import onnxruntime as ort
 
@@ -61,6 +66,42 @@ def fix_grand_staff(xml_path: str) -> None:
 
     tree.write(xml_path, encoding='UTF-8', xml_declaration=True)
 
+# convert_pdf
+# generate list of images
+# output list of images in folder
+# fur_elise.pdf -> fur_elise_pdf/images/page-[1...x] -> fur_elise_pdf/musicxml/page-[1...x]
+
+
+def convert_pdf(input_path: str) -> str:
+    pdf_path = Path(input_path)
+    base_dir = pdf_path.parent / f"{pdf_path.stem}_pdf"
+    images_base_dir = base_dir / "images"
+    musicxml_base_dir = base_dir / "musicxml"
+
+    # Create output directories
+    images_base_dir.mkdir(parents=True, exist_ok=True)
+    musicxml_base_dir.mkdir(parents=True, exist_ok=True)
+
+    image_paths: List[str] = []
+    musicxml_paths: List[str] = []
+    doc = pymupdf.open(input_path)
+    for page in doc:
+        pix = page.get_pixmap()
+        filename = f"page-{page.number + 1}.png"
+        image_path = images_base_dir / filename
+        pix.save(str(image_path))
+        image_paths.append(str(image_path))
+        output_path = convert(str(image_path), str(musicxml_base_dir))
+        musicxml_paths.append(output_path)
+
+    merged_output_path = str(musicxml_base_dir / "merged.musicxml")
+    subprocess.run(
+        ["relieur", *musicxml_paths, "-o", merged_output_path],
+        check=True
+    )
+
+    return image_paths
+
 
 def convert(input_path: str, output_path: str | None = None) -> str:
     """Convert image to MusicXML.
@@ -97,20 +138,35 @@ def convert(input_path: str, output_path: str | None = None) -> str:
 
     final_path = output_path or generated_path
     if output_path and generated_path != output_path:
+        if os.path.isdir(output_path):
+            # Move into directory, return full file path
+            final_path = os.path.join(
+                output_path, os.path.basename(generated_path))
         shutil.move(generated_path, final_path)
 
+    print(final_path, output_path, generated_path, input_path)
+
+    # We want to return the path that the file was placed in. How do we do this?
     return final_path
 
 
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) < 2:
-        print("Usage: python -m analyzer.convert <image_path> [output_path]")
+    if len(sys.argv) < 1:
+        print("Usage: python -m analyzer.convert <document_path>")
         sys.exit(1)
 
     input_file = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
 
-    result = convert(input_file, output_file)
+    # Verify file is a supported type (pdf/jpg/png)
+    valid_extensions = {'.pdf', '.jpg', '.jpeg', '.png'}
+    ext = Path(input_file).suffix.lower()
+    if ext not in valid_extensions:
+        print(
+            f"Error: Unsupported file type '{ext}'. Supported: pdf, jpg, png")
+        sys.exit(1)
+
+    result = convert_pdf(
+        input_file) if ext == '.pdf' else convert(input_file, None)
     print(f"Generated: {result}")

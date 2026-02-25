@@ -7,6 +7,8 @@ dependencies = [
     "homr",
     "music21",
     "onnxruntime>=1.24.2",
+    "pymupdf>=1.27.1",
+    "relieur",
 ]
 
 [build-system]
@@ -15,3 +17,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/analyzer"]
+
+[tool.uv.sources]
+relieur = { git = "https://github.com/papoteur-mga/relieur.git" }
