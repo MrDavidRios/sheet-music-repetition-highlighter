@@ -230,9 +230,13 @@ export function SheetMusicViewer({
 
   // Extract marker positions (called after render)
   const updateMarkerPositions = useCallback(() => {
-    if (!isLoaded || !osmdRef.current || !containerRef.current || !osmdContainerRef.current) return;
-
-    console.log("UPDATING MARKER POSITIONS");
+    if (
+      !isLoaded ||
+      !osmdRef.current ||
+      !containerRef.current ||
+      !osmdContainerRef.current
+    )
+      return;
 
     const osmd = osmdRef.current;
     const graphic = osmd.GraphicSheet;
@@ -317,14 +321,10 @@ export function SheetMusicViewer({
     setMarkers(newMarkers);
   }, [isLoaded, patternNoteIndices, patternBoundaries]);
 
-  console.log("MARKERS: ", markers);
-
   // Only update marker positions on resize - OSMD handles its own resize via autoResize
   const onResize = useDebounceCallback(() => {
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateMarkerPositions();
-      });
+      updateMarkerPositions();
     });
   }, 300);
 
@@ -336,11 +336,8 @@ export function SheetMusicViewer({
   // Apply colors first, then update positions after render completes
   useEffect(() => {
     applyColors();
-    // Double requestAnimationFrame to ensure layout is fully settled
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateMarkerPositions();
-      });
+      updateMarkerPositions();
     });
   }, [applyColors, updateMarkerPositions]);
 
