@@ -1,7 +1,9 @@
 """CLI wrapper for pattern detection with JSON output."""
 
 import json
+import os
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from music21 import chord
@@ -99,21 +101,25 @@ def main():
             f"Error: Unsupported file type '{ext}'. Supported: pdf, jpg, png, musicxml")
         sys.exit(1)
 
-    if ext == '.pdf':
-        from convert import convert_pdf
-        musicxml_path = convert_pdf(path)
-    elif ext in {'.jpg', '.jpeg', '.png'}:
-        from convert import convert
-        musicxml_path = convert(path)
-    elif ext == '.musicxml':
-        musicxml_path = path
+    # Redirect stdout to stderr during processing to avoid corrupting JSON output
+    with redirect_stdout(sys.stderr):
+        if ext == '.pdf':
+            from convert import convert_pdf
+            musicxml_path = convert_pdf(path)
+        elif ext in {'.jpg', '.jpeg', '.png'}:
+            from convert import convert
+            musicxml_path = convert(path)
+        elif ext == '.musicxml':
+            musicxml_path = path
 
-    try:
-        result = analyze(musicxml_path, min_len)
-        print(json.dumps(result, indent=2))
-    except Exception as e:
-        print(json.dumps({"error": str(e)}))
-        sys.exit(1)
+        try:
+            result = analyze(musicxml_path, min_len)
+        except Exception as e:
+            print(json.dumps({"error": str(e)}), file=sys.__stdout__)
+            sys.exit(1)
+
+    # Output JSON to actual stdout
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

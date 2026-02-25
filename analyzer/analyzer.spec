@@ -14,8 +14,8 @@ for pkg in ['music21', 'musicxml', 'homr', 'rapidocr_onnxruntime']:
 
 
 a = Analysis(
-    ['cli.py'],
-    pathex=['.'],
+    ['src/cli.py'],
+    pathex=['src'],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

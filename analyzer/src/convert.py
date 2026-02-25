@@ -144,8 +144,6 @@ def convert(input_path: str, output_path: str | None = None) -> str:
                 output_path, os.path.basename(generated_path))
         shutil.move(generated_path, final_path)
 
-    print(final_path, output_path, generated_path, input_path)
-
     # We want to return the path that the file was placed in. How do we do this?
     return final_path
 

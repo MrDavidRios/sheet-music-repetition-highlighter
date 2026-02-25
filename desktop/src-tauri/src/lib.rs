@@ -31,6 +31,7 @@ pub struct AnalysisResult {
     pub file: String,
     pub treble: StaffPatternData,
     pub bass: StaffPatternData,
+    pub musicxml_content: String
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,7 +83,7 @@ async fn analyze_music(app: tauri::AppHandle, path: String) -> Result<AnalysisRe
     }
 
     serde_json::from_str::<AnalysisResult>(&stdout)
-        .map_err(|e| format!("Failed to parse output: {}", e))
+        .map_err(|e| format!("Failed to parse output: {} (got: {:?})", e, stdout))
 }
 
 #[tauri::command]

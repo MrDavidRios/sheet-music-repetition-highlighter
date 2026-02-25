@@ -336,7 +336,7 @@ export function SheetMusicViewer({
             color: "#666",
           }}
         >
-          Select a MusicXML file to view
+          Select an image, a PDF, or a MusicXML file to view
         </div>
       )}
       {/* Render start/end markers for pattern groups */}
