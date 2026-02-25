@@ -30,6 +30,28 @@
   background-color: #f5f5f5;
 }
 
+.pattern-item > .visibility-toggle {
+  background-color: transparent;
+  border: none;
+  width: 24px;
+  height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: visible;
+}
+
+.pattern-item > .visibility-toggle > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.visibility-toggle > svg > path {
+  stroke: rgb(54, 54, 54);
+}
+
 .pattern-item > .color-indicator {
   width: 16px;
   height: 16px;
