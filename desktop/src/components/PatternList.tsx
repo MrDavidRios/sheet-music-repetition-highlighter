@@ -4,8 +4,6 @@ import { Pattern } from "./SheetMusicViewer";
 interface Props {
   title: string;
   patterns: Pattern[];
-  highlightedPatternId: number | null;
-  onPatternClick: (patternId: number | null) => void;
   enabledPatterns: Set<number>;
   onTogglePattern: (patternId: number) => void;
 }
@@ -13,8 +11,6 @@ interface Props {
 export function PatternList({
   title,
   patterns,
-  highlightedPatternId,
-  onPatternClick,
   enabledPatterns,
   onTogglePattern,
 }: Props) {
@@ -31,18 +27,6 @@ export function PatternList({
         <strong>
           {title} ({patterns.length})
         </strong>
-        {highlightedPatternId !== null && (
-          <button
-            onClick={() => onPatternClick(null)}
-            style={{
-              padding: "4px 8px",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            Show All
-          </button>
-        )}
       </div>
 
       {patterns.length === 0 ? (
@@ -53,7 +37,6 @@ export function PatternList({
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {patterns.map((pattern) => {
             const color = getPatternColor(pattern.id);
-            const isHighlighted = highlightedPatternId === pattern.id;
             const isEnabled = enabledPatterns.has(pattern.id);
 
             return (
@@ -65,12 +48,8 @@ export function PatternList({
                   gap: "8px",
                   padding: "8px",
                   borderRadius: "4px",
-                  backgroundColor: isHighlighted ? "#e0e0e0" : "#f5f5f5",
-                  cursor: "pointer",
+                  backgroundColor: "#f5f5f5",
                 }}
-                onClick={() =>
-                  onPatternClick(isHighlighted ? null : pattern.id)
-                }
               >
                 <input
                   type="checkbox"

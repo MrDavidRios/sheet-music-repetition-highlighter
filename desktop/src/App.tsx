@@ -31,9 +31,6 @@ function App() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [treblePatterns, setTreblePatterns] = useState<Pattern[]>([]);
   const [bassPatterns, setBassPatterns] = useState<Pattern[]>([]);
-  const [highlightedPatternId, setHighlightedPatternId] = useState<
-    number | null
-  >(null);
   const [enabledPatterns, setEnabledPatterns] = useState<Set<number>>(
     new Set()
   );
@@ -116,7 +113,6 @@ function App() {
         ...result.bass.patterns.map((p) => p.id),
       ];
       setEnabledPatterns(new Set(allIds));
-      setHighlightedPatternId(null);
     } catch (err) {
       setError(String(err));
       setMusicXml(null);
@@ -211,8 +207,6 @@ function App() {
             <PatternList
               title="Treble"
               patterns={treblePatterns}
-              highlightedPatternId={highlightedPatternId}
-              onPatternClick={setHighlightedPatternId}
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
             />
@@ -223,8 +217,6 @@ function App() {
             <PatternList
               title="Bass"
               patterns={bassPatterns}
-              highlightedPatternId={highlightedPatternId}
-              onPatternClick={setHighlightedPatternId}
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
             />
@@ -236,7 +228,6 @@ function App() {
           <SheetMusicViewer
             musicXml={musicXml}
             patterns={filteredPatterns}
-            highlightedPatternId={highlightedPatternId}
             patternColors={patternColors}
           />
         </main>

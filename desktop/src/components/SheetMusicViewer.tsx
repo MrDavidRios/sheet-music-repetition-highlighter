@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
 import { getPatternColor } from "../utils/color";
@@ -40,22 +46,20 @@ interface PatternMarker {
   color: string;
 }
 
-interface Props {
+interface SheetMusicViewerProps {
   musicXml: string | null;
   patterns: Pattern[];
-  highlightedPatternId: number | null;
   patternColors: Map<number, string>;
   // Optional: render custom overlay at note positions
   renderOverlay?: (positions: NotePosition[]) => React.ReactNode;
 }
 
-export function SheetMusicViewer({
+export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   musicXml,
   patterns,
-  highlightedPatternId,
   patternColors,
   renderOverlay,
-}: Props) {
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdContainerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
@@ -111,12 +115,7 @@ export function SheetMusicViewer({
       }
     >();
 
-    const patternsToUse =
-      highlightedPatternId !== null
-        ? patterns.filter((p) => p.id === highlightedPatternId)
-        : patterns;
-
-    for (const pattern of patternsToUse) {
+    for (const pattern of patterns) {
       const color =
         patternColors.get(pattern.id) || getPatternColor(pattern.id, true);
       const partIndex = pattern.partIndex;
@@ -150,7 +149,7 @@ export function SheetMusicViewer({
       patternNoteIndices: indexToPattern,
       patternBoundaries: boundaries,
     };
-  }, [patterns, highlightedPatternId, patternColors]);
+  }, [patterns, patternColors]);
 
   // Color notes via OSMD API
   const applyColors = useCallback(() => {
@@ -368,4 +367,4 @@ export function SheetMusicViewer({
         renderOverlay(notePositions)}
     </div>
   );
-}
+};
