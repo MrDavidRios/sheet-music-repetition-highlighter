@@ -1,6 +1,6 @@
 # Sheet Music Repetition Highlighter
 
-Analyzes sheet music to identify and highlight repeated sections.
+Identifies and highlight repeated sections in sheet music. Focus on practicing specific parts of a piece at a time.
 
 ## Structure
 
