@@ -13,8 +13,12 @@ interface AnalysisResult {
 function App() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [patterns, setPatterns] = useState<Pattern[]>([]);
-  const [highlightedPatternId, setHighlightedPatternId] = useState<number | null>(null);
-  const [enabledPatterns, setEnabledPatterns] = useState<Set<number>>(new Set());
+  const [highlightedPatternId, setHighlightedPatternId] = useState<
+    number | null
+  >(null);
+  const [enabledPatterns, setEnabledPatterns] = useState<Set<number>>(
+    new Set()
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -51,6 +55,8 @@ function App() {
 
       // Analyze for patterns
       const result = await invoke<AnalysisResult>("analyze_music", { path });
+      console.log("result:", result);
+
       setPatterns(result.patterns);
 
       // Enable all patterns by default
@@ -97,7 +103,9 @@ function App() {
           color: "white",
         }}
       >
-        <h1 style={{ margin: 0, fontSize: "18px" }}>Music Repetition Highlighter</h1>
+        <h1 style={{ margin: 0, fontSize: "18px" }}>
+          Music Repetition Highlighter
+        </h1>
 
         <button
           onClick={handleOpenFile}

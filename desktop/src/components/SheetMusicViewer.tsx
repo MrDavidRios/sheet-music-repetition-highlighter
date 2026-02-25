@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { OpenSheetMusicDisplay as OSMD } from "opensheetmusicdisplay";
+import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 export interface NoteLocator {
   index: number;
@@ -45,17 +45,18 @@ export function SheetMusicViewer({
   patternColors,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const osmdRef = useRef<OSMD | null>(null);
+  const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Initialize OSMD when musicXml changes
+  // Initialize OpenSheetMusicDisplay when musicXml changes
   useEffect(() => {
     if (!containerRef.current || !musicXml) return;
 
-    const osmd = new OSMD(containerRef.current, {
+    const osmd = new OpenSheetMusicDisplay(containerRef.current, {
       autoResize: true,
       drawTitle: true,
       drawComposer: true,
+      autoBeam: true,
     });
 
     osmdRef.current = osmd;
@@ -142,10 +143,12 @@ export function SheetMusicViewer({
 
         // Convert OSMD coordinates to screen coordinates
         // OSMD uses a unit system where 10 units = 1 staff line space
-        const unitToPixel = svgRect.width / (svgElement.viewBox?.baseVal?.width || svgRect.width);
+        const unitToPixel =
+          svgRect.width / (svgElement.viewBox?.baseVal?.width || svgRect.width);
 
         const startX = startBox.AbsolutePosition.x * unitToPixel * 10;
-        const endX = (endBox.AbsolutePosition.x + endBox.Size.width) * unitToPixel * 10;
+        const endX =
+          (endBox.AbsolutePosition.x + endBox.Size.width) * unitToPixel * 10;
         const y = startBox.AbsolutePosition.y * unitToPixel * 10;
         const height = startBox.Size.height * unitToPixel * 10;
 
