@@ -4,8 +4,13 @@ from PyInstaller.utils.hooks import collect_all
 datas = []
 binaries = []
 hiddenimports = ['patterns']
-tmp_ret = collect_all('music21')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+# Collect data files from packages that load files at runtime
+for pkg in ['music21', 'musicxml', 'homr', 'rapidocr_onnxruntime']:
+    tmp_ret = collect_all(pkg)
+    datas += tmp_ret[0]
+    binaries += tmp_ret[1]
+    hiddenimports += tmp_ret[2]
 
 
 a = Analysis(

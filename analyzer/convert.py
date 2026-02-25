@@ -100,7 +100,7 @@ def convert_pdf(input_path: str) -> str:
         check=True
     )
 
-    return image_paths
+    return merged_output_path
 
 
 def convert(input_path: str, output_path: str | None = None) -> str:

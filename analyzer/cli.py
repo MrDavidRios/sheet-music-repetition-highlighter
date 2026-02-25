@@ -64,6 +64,7 @@ def analyze(musicxml_path: str, min_length: int = 4) -> dict:
 
     return {
         "file": str(musicxml_path),
+        "musicxml_content": Path(musicxml_path).read_text(),
         "treble": {
             "part_index": 0,
             "part_name": result.treble.part_name if result.treble else "Treble",
@@ -90,8 +91,25 @@ def main():
         print(json.dumps({"error": f"File not found: {path}"}))
         sys.exit(1)
 
+    # Convert non-musicxml files first
+    valid_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.musicxml'}
+    ext = Path(path).suffix.lower()
+    if ext not in valid_extensions:
+        print(
+            f"Error: Unsupported file type '{ext}'. Supported: pdf, jpg, png, musicxml")
+        sys.exit(1)
+
+    if ext == '.pdf':
+        from convert import convert_pdf
+        musicxml_path = convert_pdf(path)
+    elif ext in {'.jpg', '.jpeg', '.png'}:
+        from convert import convert
+        musicxml_path = convert(path)
+    elif ext == '.musicxml':
+        musicxml_path = path
+
     try:
-        result = analyze(path, min_len)
+        result = analyze(musicxml_path, min_len)
         print(json.dumps(result, indent=2))
     except Exception as e:
         print(json.dumps({"error": str(e)}))

@@ -58,16 +58,27 @@ async fn analyze_music(app: tauri::AppHandle, path: String) -> Result<AnalysisRe
         .await
         .map_err(|e| format!("Failed to run sidecar: {} (path: {})", e, path))?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Analyzer failed: {}", stderr));
-    }
-
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Try to parse as error first
+    // Check for error JSON in stdout first (Python prints errors to stdout as JSON)
     if let Ok(err) = serde_json::from_str::<AnalysisError>(&stdout) {
         return Err(err.error);
+    }
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Filter out Python warnings, keep only actual errors
+        let filtered_stderr: String = stderr
+            .lines()
+            .filter(|line| !line.contains("Warning") && !line.contains("warnings.warn"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let error_msg = if filtered_stderr.trim().is_empty() {
+            format!("Process failed with exit code: {:?}", output.status.code())
+        } else {
+            filtered_stderr
+        };
+        return Err(format!("Analyzer failed: {}", error_msg));
     }
 
     serde_json::from_str::<AnalysisResult>(&stdout)

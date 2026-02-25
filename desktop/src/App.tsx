@@ -15,6 +15,7 @@ interface AnalysisResult {
   file: string;
   treble: PartPatterns;
   bass: PartPatterns;
+  musicxml_content: string;
 }
 
 function App() {
@@ -52,8 +53,8 @@ function App() {
       multiple: false,
       filters: [
         {
-          name: "MusicXML",
-          extensions: ["musicxml", "xml", "mxl"],
+          name: "Music Document",
+          extensions: ["pdf", "jpg", "png", "musicxml", "mxl"],
         },
       ],
     });
@@ -66,9 +67,17 @@ function App() {
 
     try {
       // Read the MusicXML file
-      const content = await invoke<string>("read_file", { path });
-      setMusicXml(content);
-      setFileName(path.split("/").pop() || path);
+      const filename = path.split("/").pop() || path;
+      const ext = path.match(/\.([^.]+)$/)?.[1]?.toLowerCase();
+      const isFileMusicXml = ext === "musicxml" || ext === "xml";
+
+      // If we have a musicxml file, we can set the music xml instantly.
+      if (isFileMusicXml) {
+        const content = await invoke<string>("read_file", { path });
+        setMusicXml(content);
+      }
+
+      setFileName(filename);
 
       // Analyze for patterns
       const result = await invoke<AnalysisResult>("analyze_music", { path });
@@ -76,6 +85,10 @@ function App() {
 
       setTreblePatterns(result.treble.patterns);
       setBassPatterns(result.bass.patterns);
+
+      if (!isFileMusicXml) {
+        setMusicXml(result.musicxml_content);
+      }
 
       // Enable all patterns by default
       const allIds = [

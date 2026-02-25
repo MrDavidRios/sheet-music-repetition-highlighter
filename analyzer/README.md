@@ -9,18 +9,11 @@ Detects repeated note patterns in MusicXML files.
 uv sync
 uv pip install pyinstaller
 
-# Build
-.venv/bin/pyinstaller analyzer.spec
-
-# Copy to Tauri (macOS ARM)
-cp dist/analyzer ../desktop/src-tauri/analyzer-aarch64-apple-darwin
-cp dist/analyzer ../desktop/src-tauri/target/debug/analyzer-aarch64-apple-darwin
+# Build and copy to Tauri
+./build.sh
 ```
 
-For other architectures, rename binary with appropriate target triple:
-- `analyzer-x86_64-apple-darwin` (macOS Intel)
-- `analyzer-x86_64-pc-windows-msvc.exe` (Windows)
-- `analyzer-x86_64-unknown-linux-gnu` (Linux)
+The script auto-detects your architecture and copies to the right Tauri sidecar location.
 
 ## Usage
 
