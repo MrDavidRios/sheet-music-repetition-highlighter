@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
+use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoteLocator {
@@ -38,7 +39,7 @@ async fn analyze_music(app: tauri::AppHandle, path: String) -> Result<AnalysisRe
 
     let sidecar = app
         .shell()
-        .sidecar("binaries/analyzer")
+        .sidecar("analyzer")
         .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .args([&path]);
 
