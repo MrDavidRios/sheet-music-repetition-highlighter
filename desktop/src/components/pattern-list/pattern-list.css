@@ -1,0 +1,46 @@
+.pattern-list-wrapper {
+  padding: 8px;
+}
+
+.pattern-list-wrapper > .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 8px;
+}
+
+.pattern-list-wrapper > .no-results {
+  color: #757575;
+  font-size: 13px;
+}
+
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pattern-list > .pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+}
+
+.pattern-item > .color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.pattern-item .notes {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
