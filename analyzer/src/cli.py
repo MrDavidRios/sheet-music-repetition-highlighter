@@ -1,6 +1,7 @@
 """CLI wrapper for pattern detection with JSON output."""
 
 import json
+import math
 import os
 import sys
 from contextlib import redirect_stdout
@@ -11,6 +12,19 @@ from music21 import chord
 from patterns import find_repeats_all_parts, Repeat
 
 
+def emit_progress(stage: str, current: int = 0, total: int = 0, message: str = ""):
+    """Emit progress JSON to stderr for Rust/frontend consumption."""
+    progress = {
+        "type": "progress",
+        "stage": stage,
+        "current": current,
+        "total": total,
+        "message": message
+    }
+    print(json.dumps(progress), file=sys.stderr)
+    sys.stderr.flush()
+
+
 def extract_note_locator(note, index: int) -> dict:
     """Extract location info from a note for UI highlighting."""
     if isinstance(note, chord.Chord):
@@ -18,10 +32,11 @@ def extract_note_locator(note, index: int) -> dict:
     else:
         pitch = note.pitch.nameWithOctave
 
+    beat = float(note.beat)
     return {
         "index": index,
         "measure": note.measureNumber,
-        "beat": float(note.beat),
+        "beat": None if math.isnan(beat) else beat,
         "pitch": pitch,
     }
 
@@ -49,7 +64,9 @@ def _repeats_to_patterns(
 
 def analyze(musicxml_path: str, min_length: int = 4) -> dict:
     """Analyze MusicXML file and return patterns as JSON-serializable dict."""
+    emit_progress("analyzing", 0, 1, "Finding patterns")
     result = find_repeats_all_parts(musicxml_path, min_length)
+    emit_progress("analyzing", 1, 1, "Patterns found")
 
     treble_patterns = []
     bass_patterns = []
@@ -104,9 +121,11 @@ def main():
     # Redirect stdout to stderr during processing to avoid corrupting JSON output
     with redirect_stdout(sys.stderr):
         if ext == '.pdf':
+            emit_progress("converting", 0, 0, f"Converting to MusicXML...")
             from convert import convert_pdf
             musicxml_path = convert_pdf(path)
         elif ext in {'.jpg', '.jpeg', '.png'}:
+            emit_progress("converting", 0, 0, f"Converting to MusicXML...")
             from convert import convert
             musicxml_path = convert(path)
         elif ext == '.musicxml':

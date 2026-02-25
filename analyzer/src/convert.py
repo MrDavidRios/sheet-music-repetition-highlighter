@@ -14,6 +14,8 @@ import onnxruntime as ort
 from homr.main import ProcessingConfig, process_image
 from homr.music_xml_generator import XmlGeneratorArguments
 
+from cli import emit_progress
+
 ENABLE_DEBUG = False
 
 WRITE_STAFF_POSITIONS = False
@@ -85,34 +87,46 @@ def convert_pdf(input_path: str) -> str:
     image_paths: List[str] = []
     musicxml_paths: List[str] = []
     doc = pymupdf.open(input_path)
+    total_pages = len(doc)
+
     for page in doc:
+        page_num = page.number + 1
+        emit_progress("extracting", page_num, total_pages,
+                      f"Extracting page {page_num}/{total_pages}")
         pix = page.get_pixmap()
-        filename = f"page-{page.number + 1}.png"
+        filename = f"page-{page_num}.png"
         image_path = images_base_dir / filename
         pix.save(str(image_path))
         image_paths.append(str(image_path))
-        output_path = convert(str(image_path), str(musicxml_base_dir))
+        output_path = convert(str(image_path), str(
+            musicxml_base_dir), page_num, total_pages)
         musicxml_paths.append(output_path)
 
+    emit_progress("merging", 0, 1, "Merging pages")
     merged_output_path = str(musicxml_base_dir / "merged.musicxml")
     subprocess.run(
         ["relieur", *musicxml_paths, "-o", merged_output_path],
         check=True
     )
+    emit_progress("merging", 1, 1, "Pages merged")
 
     return merged_output_path
 
 
-def convert(input_path: str, output_path: str | None = None) -> str:
+def convert(input_path: str, output_path: str | None = None, page_num: int = 1, total_pages: int = 1) -> str:
     """Convert image to MusicXML.
 
     Args:
         input_path: Path to input image (PNG, JPG, etc.)
         output_path: Optional output path; if None, uses input path with .musicxml extension
+        page_num: Current page number (for progress)
+        total_pages: Total pages (for progress)
 
     Returns:
         Path to generated MusicXML file
     """
+    emit_progress("omr", page_num, total_pages,
+                  f"Reading sheet music; page {page_num}/{total_pages}")
 
     has_gpu_support = "CUDAExecutionProvider" in ort.get_available_providers()
 
@@ -166,5 +180,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     result = convert_pdf(
-        input_file) if ext == '.pdf' else convert(input_file, None)
+        input_file) if ext == '.pdf' else convert(input_file, None, 1, 1)
     print(f"Generated: {result}")

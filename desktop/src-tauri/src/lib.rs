@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
-use tauri::Manager;
+use tauri_plugin_shell::process::CommandEvent;
+use tauri::{Emitter, Manager};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoteLocator {
     pub index: i32,
     pub measure: i32,
-    pub beat: f64,
+    pub beat: Option<f64>,
     pub pitch: String,
 }
 
@@ -39,6 +40,16 @@ pub struct AnalysisError {
     pub error: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Progress {
+    #[serde(rename = "type")]
+    pub progress_type: String,
+    pub stage: String,
+    pub current: i32,
+    pub total: i32,
+    pub message: String,
+}
+
 #[tauri::command]
 async fn analyze_music(app: tauri::AppHandle, path: String) -> Result<AnalysisResult, String> {
     // Debug: print resource path
@@ -52,38 +63,67 @@ async fn analyze_music(app: tauri::AppHandle, path: String) -> Result<AnalysisRe
         .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .args([&path]);
 
-    eprintln!("Sidecar created, attempting to run...");
+    eprintln!("Sidecar created, attempting to spawn...");
 
-    let output = sidecar
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run sidecar: {} (path: {})", e, path))?;
+    let (mut rx, _child) = sidecar
+        .spawn()
+        .map_err(|e| format!("Failed to spawn sidecar: {} (path: {})", e, path))?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut stdout_buffer = String::new();
+    let mut stderr_lines: Vec<String> = Vec::new();
+    let mut exit_code: Option<i32> = None;
+
+    while let Some(event) = rx.recv().await {
+        match event {
+            CommandEvent::Stderr(line_bytes) => {
+                let line = String::from_utf8_lossy(&line_bytes);
+                // Try to parse as progress JSON
+                if let Ok(progress) = serde_json::from_str::<Progress>(&line) {
+                    let _ = app.emit("analyze-progress", &progress);
+                } else {
+                    // Not progress - collect for potential error reporting
+                    stderr_lines.push(line.to_string());
+                }
+            }
+            CommandEvent::Stdout(line_bytes) => {
+                stdout_buffer.push_str(&String::from_utf8_lossy(&line_bytes));
+                stdout_buffer.push('\n');
+            }
+            CommandEvent::Terminated(payload) => {
+                exit_code = payload.code;
+                break;
+            }
+            CommandEvent::Error(err) => {
+                return Err(format!("Command error: {}", err));
+            }
+            _ => {}
+        }
+    }
 
     // Check for error JSON in stdout first (Python prints errors to stdout as JSON)
-    if let Ok(err) = serde_json::from_str::<AnalysisError>(&stdout) {
+    if let Ok(err) = serde_json::from_str::<AnalysisError>(&stdout_buffer) {
         return Err(err.error);
     }
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    // Check exit code
+    if exit_code != Some(0) {
         // Filter out Python warnings, keep only actual errors
-        let filtered_stderr: String = stderr
-            .lines()
+        let filtered_stderr: String = stderr_lines
+            .iter()
             .filter(|line| !line.contains("Warning") && !line.contains("warnings.warn"))
+            .cloned()
             .collect::<Vec<_>>()
             .join("\n");
         let error_msg = if filtered_stderr.trim().is_empty() {
-            format!("Process failed with exit code: {:?}", output.status.code())
+            format!("Process failed with exit code: {:?}", exit_code)
         } else {
             filtered_stderr
         };
         return Err(format!("Analyzer failed: {}", error_msg));
     }
 
-    serde_json::from_str::<AnalysisResult>(&stdout)
-        .map_err(|e| format!("Failed to parse output: {} (got: {:?})", e, stdout))
+    serde_json::from_str::<AnalysisResult>(&stdout_buffer)
+        .map_err(|e| format!("Failed to parse output: {} (got: {:?})", e, stdout_buffer))
 }
 
 #[tauri::command]

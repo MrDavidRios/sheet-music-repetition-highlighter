@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/PatternList";
 import "./App.css";
@@ -18,6 +19,14 @@ interface AnalysisResult {
   musicxml_content: string;
 }
 
+interface Progress {
+  type: string;
+  stage: string;
+  current: number;
+  total: number;
+  message: string;
+}
+
 function App() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [treblePatterns, setTreblePatterns] = useState<Pattern[]>([]);
@@ -31,8 +40,18 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
+
+  useEffect(() => {
+    const unlisten = listen<Progress>("analyze-progress", (event) => {
+      setProgress(event.payload);
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   // Combine all patterns for the viewer
   const allPatterns = useMemo(
@@ -64,6 +83,7 @@ function App() {
     const path = typeof selected === "string" ? selected : selected;
     setIsLoading(true);
     setError(null);
+    setProgress(null);
 
     try {
       // Read the MusicXML file
@@ -104,6 +124,7 @@ function App() {
       setBassPatterns([]);
     } finally {
       setIsLoading(false);
+      setProgress(null);
     }
   }
 
@@ -151,7 +172,11 @@ function App() {
             cursor: isLoading ? "wait" : "pointer",
           }}
         >
-          {isLoading ? "Loading..." : "Open File"}
+          {isLoading
+            ? progress
+              ? progress.message
+              : "Loading..."
+            : "Open File"}
         </button>
 
         {fileName && (

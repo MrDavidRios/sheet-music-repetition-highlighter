@@ -6,7 +6,7 @@ import { getPatternColor } from "../utils/color";
 export interface NoteLocator {
   index: number;
   measure: number;
-  beat: number;
+  beat: number | null;
   pitch: string;
 }
 
