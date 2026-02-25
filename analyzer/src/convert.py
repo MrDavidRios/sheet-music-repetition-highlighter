@@ -3,7 +3,6 @@
 import os
 import shutil
 from pathlib import Path
-import subprocess
 from typing import List
 import xml.etree.ElementTree as ET
 
@@ -13,6 +12,7 @@ import onnxruntime as ort
 
 from homr.main import ProcessingConfig, process_image
 from homr.music_xml_generator import XmlGeneratorArguments
+from relieur.relieur import process_concat
 
 from cli import emit_progress
 
@@ -103,14 +103,14 @@ def convert_pdf(input_path: str) -> str:
         musicxml_paths.append(output_path)
 
     emit_progress("merging", 0, 1, "Merging pages")
-    merged_output_path = str(musicxml_base_dir / "merged.musicxml")
-    subprocess.run(
-        ["relieur", *musicxml_paths, "-o", merged_output_path],
-        check=True
-    )
+    merged_output_path = musicxml_base_dir / "merged.musicxml"
+    merged_xml, _, _ = process_concat(tuple(musicxml_paths))
+    if merged_xml is None:
+        raise RuntimeError("Failed to merge MusicXML files")
+    merged_xml.write(merged_output_path)
     emit_progress("merging", 1, 1, "Pages merged")
 
-    return merged_output_path
+    return str(merged_output_path)
 
 
 def convert(input_path: str, output_path: str | None = None, page_num: int = 1, total_pages: int = 1) -> str:

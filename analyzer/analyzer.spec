@@ -6,7 +6,7 @@ binaries = []
 hiddenimports = ['patterns']
 
 # Collect data files from packages that load files at runtime
-for pkg in ['music21', 'musicxml', 'homr', 'rapidocr_onnxruntime']:
+for pkg in ['music21', 'musicxml', 'homr', 'rapidocr_onnxruntime', 'relieur']:
     tmp_ret = collect_all(pkg)
     datas += tmp_ret[0]
     binaries += tmp_ret[1]
