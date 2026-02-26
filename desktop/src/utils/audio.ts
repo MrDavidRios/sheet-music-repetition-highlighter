@@ -109,11 +109,12 @@ export async function playPattern(
   };
 
   // Group notes by absolute beat for polyphonic playback
-  const notesByBeat = new Map<number, PlayableNote[]>();
-  notes.forEach((note) => {
+  // Store array position (for pattern-relative highlighting) alongside each note
+  const notesByBeat = new Map<number, { note: PlayableNote; position: number }[]>();
+  notes.forEach((note, position) => {
     const absBeat = getAbsoluteBeat(note);
     if (!notesByBeat.has(absBeat)) notesByBeat.set(absBeat, []);
-    notesByBeat.get(absBeat)!.push(note);
+    notesByBeat.get(absBeat)!.push({ note, position });
   });
 
   // Sort beats and play
@@ -129,7 +130,7 @@ export async function playPattern(
 
     const notesAtBeat = notesByBeat.get(beat)!;
 
-    for (const note of notesAtBeat) {
+    for (const { note } of notesAtBeat) {
       const player = piano.play(note.pitch, timeSec, {
         duration: beatDuration * 0.9,
       });
@@ -139,10 +140,10 @@ export async function playPattern(
       }
     }
 
-    // Schedule visual highlight
+    // Schedule visual highlight using array position (not note.index)
     if (onNotePlay) {
-      const indices = notesAtBeat.map((n) => n.index);
-      const id = setTimeout(() => onNotePlay(indices), delayMs);
+      const positions = notesAtBeat.map((n) => n.position);
+      const id = setTimeout(() => onNotePlay(positions), delayMs);
       scheduledTimeouts.push(id as unknown as number);
     }
   }

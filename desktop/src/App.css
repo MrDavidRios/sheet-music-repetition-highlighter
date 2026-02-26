@@ -36,11 +36,16 @@ body.dark {
   color: var(--note-color);
 }
 
-/* Playing note highlight */
 .vf-stavenote.playing .vf-notehead path {
-  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
-  transform-origin: center;
-  transform: scale(1.15);
+  stroke-width: 3px;
+}
+
+body.light .vf-stavenote.playing .vf-notehead path {
+  stroke: var(--text-color);
+}
+
+body.dark .vf-stavenote.playing .vf-notehead path {
+  stroke: var(--text-color);
 }
 
 :root {

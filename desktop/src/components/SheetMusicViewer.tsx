@@ -69,7 +69,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   renderOverlay,
   onTimeSignatureChange,
 }) => {
-  const { playingNotes } = usePlayback();
+  const { playingPatternId, playingBeatIndex } = usePlayback();
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdContainerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
@@ -128,6 +128,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       {
         patternId: number;
         occurrenceIndex: number;
+        positionInPattern: number;
         color: string;
         pitch: string;
       }
@@ -142,9 +143,11 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
         for (let i = 0; i < pattern.length; i++) {
           const key = `${partIndex}-${startPos + i}`;
           const pitch = pattern.notes[i]?.pitch || "";
+
           indexToPattern.set(key, {
             patternId: pattern.id,
             occurrenceIndex,
+            positionInPattern: i,
             color,
             pitch,
           });
@@ -450,9 +453,15 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   // Toggle "playing" class on notes during audio playback
   useEffect(() => {
     noteElementsRef.current.forEach((el, key) => {
-      el.classList.toggle("playing", playingNotes?.has(key) ?? false);
+      const patternInfo = patternNoteIndices.get(key);
+
+      const isPlaying =
+        patternInfo !== undefined &&
+        patternInfo.patternId === playingPatternId &&
+        patternInfo.positionInPattern === playingBeatIndex;
+      el.classList.toggle("playing", isPlaying);
     });
-  }, [playingNotes]);
+  }, [playingPatternId, playingBeatIndex, patternNoteIndices]);
 
   return (
     <div

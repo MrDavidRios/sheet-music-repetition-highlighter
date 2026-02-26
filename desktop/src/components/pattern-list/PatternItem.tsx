@@ -25,7 +25,7 @@ export const PatternItem: React.FC<PatternItemProps> = ({
     playingPatternId,
     startPlayback,
     stopPlayback,
-    setPlayingNotes,
+    setPlayingBeatIndex,
   } = usePlayback();
 
   const color = getPatternColor(pattern.id);
@@ -39,19 +39,13 @@ export const PatternItem: React.FC<PatternItemProps> = ({
       return;
     }
 
-    // Map note indices to "partIndex-noteIndex" keys for all occurrences
     const handleNotePlay = (noteIndices: number[]) => {
-      const keys = new Set<string>();
-      for (const startPos of pattern.positions) {
-        for (const idx of noteIndices) {
-          keys.add(`${pattern.partIndex}-${startPos + idx}`);
-        }
-      }
-      setPlayingNotes(keys);
+      // Use first index as the beat position in the pattern
+      setPlayingBeatIndex(noteIndices[0] ?? null);
     };
 
     const handleEnd = () => {
-      setPlayingNotes(null);
+      setPlayingBeatIndex(null);
     };
 
     // playPattern calls stopPlayback() synchronously first, which clears old state

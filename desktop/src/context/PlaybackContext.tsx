@@ -2,17 +2,17 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 
 interface PlaybackContextValue {
   playingPatternId: number | null;
-  playingNotes: Set<string> | null;
+  playingBeatIndex: number | null;
   startPlayback: (patternId: number) => void;
   stopPlayback: () => void;
-  setPlayingNotes: (keys: Set<string> | null) => void;
+  setPlayingBeatIndex: (index: number | null) => void;
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [playingPatternId, setPlayingPatternId] = useState<number | null>(null);
-  const [playingNotes, setPlayingNotesState] = useState<Set<string> | null>(null);
+  const [playingBeatIndex, setPlayingBeatIndexState] = useState<number | null>(null);
 
   const startPlayback = useCallback((patternId: number) => {
     setPlayingPatternId(patternId);
@@ -20,12 +20,12 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const stopPlayback = useCallback(() => {
     setPlayingPatternId(null);
-    setPlayingNotesState(null);
+    setPlayingBeatIndexState(null);
   }, []);
 
-  const setPlayingNotes = useCallback((keys: Set<string> | null) => {
-    setPlayingNotesState(keys);
-    if (keys === null) {
+  const setPlayingBeatIndex = useCallback((index: number | null) => {
+    setPlayingBeatIndexState(index);
+    if (index === null) {
       setPlayingPatternId(null);
     }
   }, []);
@@ -34,10 +34,10 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     <PlaybackContext.Provider
       value={{
         playingPatternId,
-        playingNotes,
+        playingBeatIndex,
         startPlayback,
         stopPlayback,
-        setPlayingNotes,
+        setPlayingBeatIndex,
       }}
     >
       {children}
