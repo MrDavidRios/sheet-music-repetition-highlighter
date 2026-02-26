@@ -1,4 +1,5 @@
 import { Pattern } from "../SheetMusicViewer";
+import { VisibilityToggle } from "../visibility-toggle/VisibilityToggle";
 import { PatternItem } from "./PatternItem";
 
 import "./pattern-list.css";
@@ -8,6 +9,7 @@ interface Props {
   patterns: Pattern[];
   enabledPatterns: Set<number>;
   onTogglePattern: (patternId: number) => void;
+  onToggleAllPatterns: (partIndex: number) => void;
 }
 
 export function PatternList({
@@ -15,13 +17,25 @@ export function PatternList({
   patterns,
   enabledPatterns,
   onTogglePattern,
+  onToggleAllPatterns,
 }: Props) {
+  const anyVisible = patterns.some((p) => enabledPatterns.has(p.id));
+
   return (
     <div className="pattern-list-wrapper">
       <div className="header">
         <strong>
           {title} ({patterns.length})
         </strong>
+
+        {patterns.length > 0 && (
+          <VisibilityToggle
+            isVisible={anyVisible}
+            onToggle={() => onToggleAllPatterns(patterns[0].partIndex)}
+            showTooltip={`Show all ${title.toLowerCase()} patterns`}
+            hideTooltip={`Hide all ${title.toLowerCase()} patterns`}
+          />
+        )}
       </div>
 
       {patterns.length === 0 ? (

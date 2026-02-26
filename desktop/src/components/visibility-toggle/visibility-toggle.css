@@ -1,0 +1,28 @@
+.visibility-toggle {
+  background-color: transparent;
+  border: none;
+  width: 24px;
+  height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: visible;
+  cursor: pointer;
+
+  transition: none;
+}
+
+.visibility-toggle:hover {
+  background-color: rgba(76, 76, 76, 0.2);
+}
+
+.visibility-toggle > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.visibility-toggle > svg > path {
+  stroke: rgb(54, 54, 54);
+}

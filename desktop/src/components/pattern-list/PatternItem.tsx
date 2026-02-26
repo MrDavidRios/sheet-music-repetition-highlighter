@@ -1,9 +1,7 @@
 import React from "react";
-import { EyeIconClosed } from "../../assets/icons/EyeClosedIcon";
-import { EyeIcon } from "../../assets/icons/EyeIcon";
 import { getPatternColor } from "../../utils/color";
 import { Pattern } from "../SheetMusicViewer";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/Tooltip";
+import { VisibilityToggle } from "../visibility-toggle/VisibilityToggle";
 
 interface PatternItemProps {
   pattern: Pattern;
@@ -35,14 +33,12 @@ export const PatternItem: React.FC<PatternItemProps> = ({
         </div>
       </div>
 
-      <Tooltip>
-        <TooltipTrigger className="visibility-toggle" onClick={onToggle}>
-          {isEnabled ? <EyeIcon /> : <EyeIconClosed />}
-        </TooltipTrigger>
-        <TooltipContent>
-          {isEnabled ? "Hide group" : "Show group"}
-        </TooltipContent>
-      </Tooltip>
+      <VisibilityToggle
+        isVisible={isEnabled}
+        onToggle={onToggle}
+        showTooltip="Show pattern"
+        hideTooltip="Hide pattern"
+      />
     </div>
   );
 };

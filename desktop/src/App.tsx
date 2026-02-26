@@ -52,10 +52,7 @@ function App() {
 
   // Combine all patterns for the viewer
   const allPatterns = useMemo(
-    () => [
-      ...treblePatterns.map((pattern) => ({ ...pattern, partIndex: 0 })),
-      ...bassPatterns.map((pattern) => ({ ...pattern, partIndex: 1 })),
-    ],
+    () => [...treblePatterns, ...bassPatterns],
     [treblePatterns, bassPatterns]
   );
 
@@ -100,8 +97,12 @@ function App() {
       const result = await invoke<AnalysisResult>("analyze_music", { path });
       console.log("result:", result);
 
-      setTreblePatterns(result.treble.patterns);
-      setBassPatterns(result.bass.patterns);
+      setTreblePatterns(
+        result.treble.patterns.map((pattern) => ({ ...pattern, partIndex: 0 }))
+      );
+      setBassPatterns(
+        result.bass.patterns.map((pattern) => ({ ...pattern, partIndex: 1 }))
+      );
 
       if (!isFileMusicXml) {
         setMusicXml(result.musicxml_content);
@@ -132,6 +133,26 @@ function App() {
       } else {
         next.add(patternId);
       }
+      return next;
+    });
+  }
+
+  function handleToggleAllPatternsOfType(partIndex: number) {
+    setEnabledPatterns((prev) => {
+      const next = new Set(prev);
+      const patternsOfPart = allPatterns.filter(
+        (p) => p.partIndex === partIndex
+      );
+
+      const anyVisible = patternsOfPart.some((p) => next.has(p.id));
+      for (const pattern of patternsOfPart) {
+        if (anyVisible) {
+          next.delete(pattern.id);
+        } else {
+          next.add(pattern.id);
+        }
+      }
+
       return next;
     });
   }
@@ -209,6 +230,7 @@ function App() {
               patterns={treblePatterns}
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
+              onToggleAllPatterns={handleToggleAllPatternsOfType}
             />
           </div>
 
@@ -219,6 +241,7 @@ function App() {
               patterns={bassPatterns}
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
+              onToggleAllPatterns={handleToggleAllPatternsOfType}
             />
           </div>
         </aside>

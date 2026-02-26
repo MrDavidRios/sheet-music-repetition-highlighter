@@ -72,7 +72,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     if (!osmdContainerRef.current || !musicXml) return;
 
     const osmd = new OpenSheetMusicDisplay(osmdContainerRef.current, {
-      autoResize: true,
+      autoResize: false, // Handle resize manually to preserve scroll
       drawTitle: true,
       drawComposer: true,
       autoBeam: true,
@@ -196,7 +196,16 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       }
     }
 
+    // Save scroll position before render (OSMD rebuilds SVG)
+    const container = containerRef.current;
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
+
     osmd.render();
+
+    // Restore scroll position after render
+    container.scrollTop = scrollTop;
+    container.scrollLeft = scrollLeft;
   }, [isLoaded, patternNoteIndices]);
 
   // Extract marker positions (called after render)
@@ -249,13 +258,16 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
 
             if (staffEntry.PositionAndShape) {
               const box = staffEntry.PositionAndShape;
+              // Add scroll offset to convert viewport-relative to content-relative
               const x =
                 svgRect.left -
                 containerRect.left +
+                container.scrollLeft +
                 box.AbsolutePosition.x * unitToPixel * 10;
               const y =
                 svgRect.top -
                 containerRect.top +
+                container.scrollTop +
                 box.AbsolutePosition.y * unitToPixel * 10;
 
               if (patternInfo) {
@@ -292,8 +304,19 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     setMarkers(newMarkers);
   }, [isLoaded, patternNoteIndices, patternBoundaries]);
 
-  // Only update marker positions on resize - OSMD handles its own resize via autoResize
+  // Handle resize manually to preserve scroll position
   const onResize = useDebounceCallback(() => {
+    if (!isLoaded || !osmdRef.current || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
+
+    osmdRef.current.render();
+
+    container.scrollTop = scrollTop;
+    container.scrollLeft = scrollLeft;
+
     requestAnimationFrame(() => {
       updateMarkerPositions();
     });
