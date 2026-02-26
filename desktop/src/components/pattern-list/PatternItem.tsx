@@ -1,6 +1,6 @@
 import React from "react";
 import { getPatternColor } from "../../utils/color";
-import { playPattern } from "../../utils/audio";
+import { playPattern, stopPlayback } from "../../utils/audio";
 import { Pattern } from "../SheetMusicViewer";
 import { VisibilityToggle } from "../visibility-toggle/VisibilityToggle";
 import { useTimeSignature } from "../../context/TimeSignatureContext";
@@ -9,6 +9,8 @@ interface PatternItemProps {
   pattern: Pattern;
   isEnabled: boolean;
   onToggle: () => void;
+  playingPatternId: number | null;
+  onPlayStart?: (patternId: number) => void;
   onPlayingNotesChange?: (keys: Set<string> | null) => void;
 }
 
@@ -16,13 +18,21 @@ export const PatternItem: React.FC<PatternItemProps> = ({
   pattern,
   isEnabled,
   onToggle,
+  playingPatternId,
+  onPlayStart,
   onPlayingNotesChange,
 }) => {
   const { beatsPerMeasure, timeSigDenominator } = useTimeSignature();
   const color = getPatternColor(pattern.id);
   const displayNotes = pattern.notes.map((n) => n.pitch).join(" ");
+  const isPlaying = playingPatternId === pattern.id;
 
-  const handlePlay = () => {
+  const handlePlayStop = () => {
+    if (isPlaying) {
+      stopPlayback();
+      return;
+    }
+
     // Map note indices to "partIndex-noteIndex" keys for all occurrences
     const handleNotePlay = (noteIndices: number[]) => {
       if (!onPlayingNotesChange) return;
@@ -39,13 +49,17 @@ export const PatternItem: React.FC<PatternItemProps> = ({
       onPlayingNotesChange?.(null);
     };
 
-    console.log("[PatternItem] pattern notes", pattern.notes);
+    // playPattern calls stopPlayback() synchronously first, which clears old state
     playPattern(pattern.notes, {
+      patternId: pattern.id,
       beatsPerMeasure,
       timeSigDenominator,
       onNotePlay: handleNotePlay,
       onPlaybackEnd: handleEnd,
     });
+
+    // Notify after playPattern starts (old callback already cleared)
+    onPlayStart?.(pattern.id);
   };
 
   return (
@@ -66,11 +80,11 @@ export const PatternItem: React.FC<PatternItemProps> = ({
 
       <button
         className="play-button"
-        onClick={handlePlay}
-        title="Play pattern"
-        aria-label="Play pattern"
+        onClick={handlePlayStop}
+        title={isPlaying ? "Stop" : "Play pattern"}
+        aria-label={isPlaying ? "Stop" : "Play pattern"}
       >
-        ▶
+        {isPlaying ? "■" : "▶"}
       </button>
 
       <VisibilityToggle

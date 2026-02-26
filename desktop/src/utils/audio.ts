@@ -4,6 +4,12 @@ let audioContext: AudioContext | null = null;
 let piano: Player | null = null;
 let loadingPromise: Promise<void> | null = null;
 
+// Playback state for stopping
+let scheduledTimeouts: number[] = [];
+let activeNodes: AudioBufferSourceNode[] = [];
+let currentPatternId: number | null = null;
+let onStopCallback: (() => void) | null = null;
+
 async function initAudio(): Promise<void> {
   if (piano) return;
   if (loadingPromise) return loadingPromise;
@@ -24,6 +30,7 @@ export interface PlayableNote {
 }
 
 export interface PlayPatternOptions {
+  patternId: number;
   tempo?: number;
   beatsPerMeasure?: number;
   timeSigDenominator?: number;
@@ -31,17 +38,49 @@ export interface PlayPatternOptions {
   onPlaybackEnd?: () => void;
 }
 
+export function stopPlayback(): void {
+  // Clear all scheduled timeouts
+  for (const id of scheduledTimeouts) {
+    clearTimeout(id);
+  }
+  scheduledTimeouts = [];
+
+  // Stop all active audio nodes
+  for (const node of activeNodes) {
+    try {
+      node.stop();
+    } catch {
+      // Node may already be stopped
+    }
+  }
+  activeNodes = [];
+
+  // Call stop callback (to clear UI state)
+  const cb = onStopCallback;
+  currentPatternId = null;
+  onStopCallback = null;
+  cb?.();
+}
+
+export function getPlayingPatternId(): number | null {
+  return currentPatternId;
+}
+
 export async function playPattern(
   notes: PlayableNote[],
-  options: PlayPatternOptions = {}
+  options: PlayPatternOptions
 ): Promise<void> {
   const {
+    patternId,
     tempo = 120,
     beatsPerMeasure = 4,
     timeSigDenominator = 4,
     onNotePlay,
     onPlaybackEnd,
   } = options;
+
+  // Stop any current playback first
+  stopPlayback();
 
   await initAudio();
   if (!audioContext || !piano) return;
@@ -50,6 +89,9 @@ export async function playPattern(
   if (audioContext.state === "suspended") {
     await audioContext.resume();
   }
+
+  currentPatternId = patternId;
+  onStopCallback = onPlaybackEnd ?? null;
 
   const beatDuration = 60 / tempo;
   const startTime = audioContext.currentTime;
@@ -85,25 +127,33 @@ export async function playPattern(
     const delayMs = (beat - firstBeat) * beatDuration * 1000;
     lastDelayMs = delayMs;
 
-    console.log(delayMs, beat - firstBeat, beatDuration);
-
     const notesAtBeat = notesByBeat.get(beat)!;
 
     for (const note of notesAtBeat) {
-      piano.play(note.pitch, timeSec, { duration: beatDuration * 0.9 }); // Create slight gap between notes
+      const player = piano.play(note.pitch, timeSec, {
+        duration: beatDuration * 0.9,
+      });
+      // Track audio node for stopping
+      if (player) {
+        activeNodes.push(player as unknown as AudioBufferSourceNode);
+      }
     }
 
     // Schedule visual highlight
     if (onNotePlay) {
       const indices = notesAtBeat.map((n) => n.index);
-      setTimeout(() => onNotePlay(indices), delayMs);
+      const id = setTimeout(() => onNotePlay(indices), delayMs);
+      scheduledTimeouts.push(id as unknown as number);
     }
   }
 
   // Schedule end callback
-  if (onPlaybackEnd) {
-    const endDelayMs = lastDelayMs + beatDuration * 1000;
-    console.log("end delay ms: ", endDelayMs);
-    setTimeout(onPlaybackEnd, endDelayMs);
-  }
+  const endDelayMs = lastDelayMs + beatDuration * 1000;
+  const endId = setTimeout(() => {
+    activeNodes = [];
+    currentPatternId = null;
+    onStopCallback = null;
+    onPlaybackEnd?.();
+  }, endDelayMs);
+  scheduledTimeouts.push(endId as unknown as number);
 }

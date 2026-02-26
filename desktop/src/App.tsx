@@ -45,7 +45,16 @@ function AppContent() {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [playingNotes, setPlayingNotes] = useState<Set<string> | null>(null);
+  const [playingPatternId, setPlayingPatternId] = useState<number | null>(null);
   const { setTimeSignature } = useTimeSignature();
+
+  // Wrapper to track playing pattern ID alongside playing notes
+  const handlePlayingNotesChange = (keys: Set<string> | null) => {
+    setPlayingNotes(keys);
+    if (keys === null) {
+      setPlayingPatternId(null);
+    }
+  };
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
 
@@ -248,7 +257,9 @@ function AppContent() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
-              onPlayingNotesChange={setPlayingNotes}
+              playingPatternId={playingPatternId}
+              onPlayStart={setPlayingPatternId}
+              onPlayingNotesChange={handlePlayingNotesChange}
             />
           </div>
 
@@ -260,7 +271,9 @@ function AppContent() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
-              onPlayingNotesChange={setPlayingNotes}
+              playingPatternId={playingPatternId}
+              onPlayStart={setPlayingPatternId}
+              onPlayingNotesChange={handlePlayingNotesChange}
             />
           </div>
         </aside>
