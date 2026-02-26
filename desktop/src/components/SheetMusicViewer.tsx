@@ -259,27 +259,45 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
             const patternInfo = patternNoteIndices.get(key);
             const boundaryInfo = patternBoundaries.get(key);
 
-            if (staffEntry.PositionAndShape) {
-              const box = staffEntry.PositionAndShape;
+            for (const graphicalNote of voiceEntry.notes) {
+              if (graphicalNote.sourceNote.isRest()) continue;
+
+              const box = graphicalNote.PositionAndShape;
+              if (!box) continue;
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const gn = graphicalNote as any;
+              const vfnote = gn.vfnote?.[0];
+              const noteHead = vfnote?.note_heads?.[0];
+
+              // Fixed notehead size (consistent hitboxes)
+              const noteheadSize = unitToPixel * 10 * 2;
+              const width = noteheadSize;
+              const height = noteheadSize;
+
+              // Use VexFlow notehead coords if available, fallback to OSMD
+              const noteX = noteHead?.x ?? box.AbsolutePosition.x * 10;
+              const noteY = noteHead?.y ?? box.AbsolutePosition.y * 10;
+
               // Add scroll offset to convert viewport-relative to content-relative
               const x =
                 svgRect.left -
                 containerRect.left +
                 container.scrollLeft +
-                box.AbsolutePosition.x * unitToPixel * 10;
+                noteX * unitToPixel;
               const y =
                 svgRect.top -
                 containerRect.top +
                 container.scrollTop +
-                box.AbsolutePosition.y * unitToPixel * 10;
+                noteY * unitToPixel;
 
               if (patternInfo) {
                 positions.push({
                   index: noteIndex,
                   x,
                   y,
-                  width: box.Size.width * unitToPixel * 10,
-                  height: box.Size.height * unitToPixel * 10,
+                  width,
+                  height,
                   patternId: patternInfo.patternId,
                   color: patternInfo.color,
                   pitch: patternInfo.pitch,
@@ -347,7 +365,6 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
         width: "100%",
         height: "100%",
         overflow: "auto",
-        backgroundColor: "white",
       }}
     >
       {/* OSMD renders into this div - separate from React-managed markers */}
@@ -371,8 +388,8 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
           key={`marker-${i}`}
           style={{
             position: "absolute",
-            left: marker.x - 6,
-            top: marker.type === "start" ? marker.y - 20 : marker.y + 35,
+            left: marker.x - 2,
+            top: marker.type === "start" ? marker.y - 30 : marker.y + 20,
             width: 0,
             height: 0,
             borderLeft: "8px solid transparent",
@@ -394,13 +411,11 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
             <div
               style={{
                 position: "absolute",
-                left: pos.x - pos.width / 2,
-                top: pos.y,
+                left: pos.x - pos.width * 0.2,
+                top: pos.y - pos.height / 2,
                 width: pos.width,
                 height: pos.height,
-                background: "transparent",
                 cursor: "default",
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
               }}
             />
           </TooltipTrigger>

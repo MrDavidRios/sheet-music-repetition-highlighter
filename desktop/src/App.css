@@ -12,6 +12,10 @@
   color: #333;
 }
 
+body {
+  background-color: rgb(246, 246, 246);
+}
+
 button {
   border-radius: 4px;
   border: 1px solid #555;

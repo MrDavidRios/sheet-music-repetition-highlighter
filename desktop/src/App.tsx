@@ -211,7 +211,6 @@ function App() {
         <aside
           style={{
             width: "280px",
-            backgroundColor: "white",
             borderRight: "1px solid #ddd",
             display: "flex",
             flexDirection: "column",
