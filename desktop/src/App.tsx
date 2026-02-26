@@ -5,8 +5,6 @@ import { listen } from "@tauri-apps/api/event";
 import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/pattern-list/PatternList";
 import "./App.css";
-import { HalfMoonIcon } from "./assets/icons/HalfMoon";
-import { SeaAndSunIcon } from "./assets/icons/SeaAndSun";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 interface PartPatterns {

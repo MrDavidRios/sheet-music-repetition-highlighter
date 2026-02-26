@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
-import { getPatternColor } from "../utils/color";
+import { getPatternColor, getPatternRectColor } from "../utils/color";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip/Tooltip";
 
 export interface NoteLocator {
@@ -38,14 +38,18 @@ export interface NotePosition {
   pitch: string;
 }
 
-// Marker for pattern start/end
-interface PatternMarker {
-  type: "start" | "end";
-  x: number;
-  y: number;
+// Rectangle overlay for pattern occurrence (per system segment)
+interface PatternRectangle {
   patternId: number;
   occurrenceIndex: number;
+  systemId: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   color: string;
+  isStart: boolean; // First segment of occurrence (left border-radius)
+  isEnd: boolean;   // Last segment of occurrence (right border-radius)
 }
 
 interface SheetMusicViewerProps {
@@ -67,7 +71,9 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [notePositions, setNotePositions] = useState<NotePosition[]>([]);
-  const [markers, setMarkers] = useState<PatternMarker[]>([]);
+  const [patternRectangles, setPatternRectangles] = useState<
+    PatternRectangle[]
+  >([]);
 
   // Initialize OpenSheetMusicDisplay when musicXml changes
   useEffect(() => {
@@ -99,21 +105,16 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     };
   }, [musicXml]);
 
-  // Build set of note indices that belong to patterns + start/end markers
+  // Build set of note indices that belong to patterns
   // Keys are "partIndex-noteIndex" to support both staves
-  const { patternNoteIndices, patternBoundaries } = useMemo(() => {
+  const patternNoteIndices = useMemo(() => {
     const indexToPattern = new Map<
       string,
-      { patternId: number; color: string; pitch: string }
-    >();
-    // Map of "partIndex-noteIndex" -> marker info for start/end positions
-    const boundaries = new Map<
-      string,
       {
-        type: "start" | "end";
         patternId: number;
         occurrenceIndex: number;
         color: string;
+        pitch: string;
       }
     >();
 
@@ -123,35 +124,19 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       const partIndex = pattern.partIndex;
 
       pattern.positions.forEach((startPos, occurrenceIndex) => {
-        const endPos = startPos + pattern.length - 1;
-
-        // Mark start and end positions with composite key
-        const startKey = `${partIndex}-${startPos}`;
-        const endKey = `${partIndex}-${endPos}`;
-        boundaries.set(startKey, {
-          type: "start",
-          patternId: pattern.id,
-          occurrenceIndex,
-          color,
-        });
-        boundaries.set(endKey, {
-          type: "end",
-          patternId: pattern.id,
-          occurrenceIndex,
-          color,
-        });
-
         for (let i = 0; i < pattern.length; i++) {
           const key = `${partIndex}-${startPos + i}`;
           const pitch = pattern.notes[i]?.pitch || "";
-          indexToPattern.set(key, { patternId: pattern.id, color, pitch });
+          indexToPattern.set(key, {
+            patternId: pattern.id,
+            occurrenceIndex,
+            color,
+            pitch,
+          });
         }
       });
     }
-    return {
-      patternNoteIndices: indexToPattern,
-      patternBoundaries: boundaries,
-    };
+    return indexToPattern;
   }, [patterns, patternColors]);
 
   // Color notes via OSMD API
@@ -211,7 +196,18 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     container.scrollLeft = scrollLeft;
   }, [isLoaded, patternNoteIndices]);
 
-  // Extract marker positions (called after render)
+  // Collected note info for rectangle computation
+  interface CollectedNote {
+    patternId: number;
+    occurrenceIndex: number;
+    systemId: number;
+    x: number;
+    width: number;
+    staffTop: number;
+    staffHeight: number;
+  }
+
+  // Extract note positions and compute rectangle overlays
   const updateMarkerPositions = useCallback(() => {
     if (
       !isLoaded ||
@@ -236,7 +232,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       svgRect.width / (svgElement.viewBox?.baseVal?.width || svgRect.width);
 
     const positions: NotePosition[] = [];
-    const newMarkers: PatternMarker[] = [];
+    const collectedNotes: CollectedNote[] = [];
     const numStaves = graphic.MeasureList[0]?.length || 1;
 
     for (let staffIndex = 0; staffIndex < numStaves; staffIndex++) {
@@ -245,6 +241,23 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       for (const measureList of graphic.MeasureList) {
         const measure = measureList[staffIndex];
         if (!measure) continue;
+
+        // Get system info from measure
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const m = measure as any;
+        const systemId = m.ParentMusicSystem?.Id ?? 0;
+        const staffLine = m.ParentStaffLine;
+        const staffHeightUnits = staffLine?.StaffHeight ?? 4;
+        const staffTopUnits =
+          staffLine?.PositionAndShape?.AbsolutePosition?.y ?? 0;
+
+        // Convert to pixels
+        const staffTop =
+          svgRect.top -
+          containerRect.top +
+          container.scrollTop +
+          staffTopUnits * 10 * unitToPixel;
+        const staffHeight = staffHeightUnits * 10 * unitToPixel;
 
         for (const staffEntry of measure.staffEntries) {
           if (!staffEntry) continue;
@@ -257,7 +270,6 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
 
             const key = `${staffIndex}-${noteIndex}`;
             const patternInfo = patternNoteIndices.get(key);
-            const boundaryInfo = patternBoundaries.get(key);
 
             for (const graphicalNote of voiceEntry.notes) {
               if (graphicalNote.sourceNote.isRest()) continue;
@@ -308,16 +320,16 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
                   color: patternInfo.color,
                   pitch: patternInfo.pitch,
                 });
-              }
 
-              if (boundaryInfo) {
-                newMarkers.push({
-                  type: boundaryInfo.type,
+                // Collect for rectangle computation
+                collectedNotes.push({
+                  patternId: patternInfo.patternId,
+                  occurrenceIndex: patternInfo.occurrenceIndex,
+                  systemId,
                   x,
-                  y,
-                  patternId: boundaryInfo.patternId,
-                  occurrenceIndex: boundaryInfo.occurrenceIndex,
-                  color: boundaryInfo.color,
+                  width,
+                  staffTop,
+                  staffHeight,
                 });
               }
             }
@@ -328,9 +340,64 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       }
     }
 
+    // Group notes by (patternId, occurrenceIndex, systemId) and compute bounding rectangles
+    const rectGroups = new Map<string, CollectedNote[]>();
+    for (const note of collectedNotes) {
+      const groupKey = `${note.patternId}-${note.occurrenceIndex}-${note.systemId}`;
+      if (!rectGroups.has(groupKey)) {
+        rectGroups.set(groupKey, []);
+      }
+      rectGroups.get(groupKey)!.push(note);
+    }
+
+    const newRectangles: PatternRectangle[] = [];
+    const padding = 5;
+
+    for (const [, notes] of rectGroups) {
+      if (notes.length === 0) continue;
+
+      const minX = Math.min(...notes.map((n) => n.x)) - padding;
+      const maxX = Math.max(...notes.map((n) => n.x + n.width)) + padding;
+      const { patternId, occurrenceIndex, systemId, staffTop, staffHeight } =
+        notes[0];
+
+      newRectangles.push({
+        patternId,
+        occurrenceIndex,
+        systemId,
+        x: minX,
+        y: staffTop,
+        width: maxX - minX,
+        height: staffHeight,
+        color: getPatternRectColor(patternId),
+        isStart: true, // Will be updated below
+        isEnd: true,
+      });
+    }
+
+    // Determine isStart/isEnd for multi-system patterns
+    // Group rectangles by (patternId, occurrenceIndex), sort by systemId
+    const occurrenceGroups = new Map<string, PatternRectangle[]>();
+    for (const rect of newRectangles) {
+      const key = `${rect.patternId}-${rect.occurrenceIndex}`;
+      if (!occurrenceGroups.has(key)) {
+        occurrenceGroups.set(key, []);
+      }
+      occurrenceGroups.get(key)!.push(rect);
+    }
+
+    for (const [, rects] of occurrenceGroups) {
+      if (rects.length <= 1) continue; // Single segment, keep both true
+      rects.sort((a, b) => a.systemId - b.systemId);
+      for (let i = 0; i < rects.length; i++) {
+        rects[i].isStart = i === 0;
+        rects[i].isEnd = i === rects.length - 1;
+      }
+    }
+
     setNotePositions(positions);
-    setMarkers(newMarkers);
-  }, [isLoaded, patternNoteIndices, patternBoundaries]);
+    setPatternRectangles(newRectangles);
+  }, [isLoaded, patternNoteIndices]);
 
   // Handle resize manually to preserve scroll position
   const onResize = useDebounceCallback(() => {
@@ -388,28 +455,26 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
           Select an image, a PDF, or a MusicXML file to view
         </div>
       )}
-      {/* Render start/end markers for pattern groups */}
-      {markers.map((marker, i) => (
-        <div
-          key={`marker-${i}`}
-          style={{
-            position: "absolute",
-            left: marker.x - 2,
-            top: marker.type === "start" ? marker.y - 30 : marker.y + 20,
-            width: 0,
-            height: 0,
-            borderLeft: "8px solid transparent",
-            borderRight: "8px solid transparent",
-            ...(marker.type === "start"
-              ? { borderTop: `12px solid ${marker.color}` }
-              : { borderBottom: `12px solid ${marker.color}` }),
-            pointerEvents: "none",
-          }}
-          title={`${marker.type === "start" ? "Start" : "End"} of pattern ${
-            marker.patternId + 1
-          }, occurrence ${marker.occurrenceIndex + 1}`}
-        />
-      ))}
+      {/* Render pattern rectangle overlays */}
+      {patternRectangles.map((rect, i) => {
+        const radius = 6;
+        return (
+          <div
+            key={`rect-${rect.patternId}-${rect.occurrenceIndex}-${i}`}
+            style={{
+              position: "absolute",
+              left: rect.x,
+              top: rect.y,
+              width: rect.width,
+              height: rect.height,
+              backgroundColor: rect.color,
+              borderRadius: `${rect.isStart ? radius : 0}px ${rect.isEnd ? radius : 0}px ${rect.isEnd ? radius : 0}px ${rect.isStart ? radius : 0}px`,
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        );
+      })}
       {/* Render note tooltips for highlighted notes */}
       {notePositions.map((pos, i) => (
         <Tooltip key={`note-tooltip-${i}`}>

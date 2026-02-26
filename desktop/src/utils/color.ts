@@ -16,7 +16,17 @@ export const COLORS_ALPHA = COLORS_SOLID.map((color) =>
   color.replace(")", `, ${opacity})`)
 );
 
+// Semi-opaque colors for rectangle overlays
+const rectOpacity = 0.25;
+export const COLORS_RECT = COLORS_SOLID.map((color) =>
+  color.replace("rgb(", "rgba(").replace(")", `, ${rectOpacity})`)
+);
+
 export function getPatternColor(patternId: number, solid = false): string {
   const colors = solid ? COLORS_SOLID : COLORS_ALPHA;
   return colors[patternId % colors.length];
+}
+
+export function getPatternRectColor(patternId: number): string {
+  return COLORS_RECT[patternId % COLORS_RECT.length];
 }
