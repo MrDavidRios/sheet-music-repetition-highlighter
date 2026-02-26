@@ -8,6 +8,7 @@ import React, {
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
 import { getPatternColor } from "../utils/color";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip/Tooltip";
 
 export interface NoteLocator {
   index: number;
@@ -34,6 +35,7 @@ export interface NotePosition {
   height: number;
   patternId: number;
   color: string;
+  pitch: string;
 }
 
 // Marker for pattern start/end
@@ -102,7 +104,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   const { patternNoteIndices, patternBoundaries } = useMemo(() => {
     const indexToPattern = new Map<
       string,
-      { patternId: number; color: string }
+      { patternId: number; color: string; pitch: string }
     >();
     // Map of "partIndex-noteIndex" -> marker info for start/end positions
     const boundaries = new Map<
@@ -141,7 +143,8 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
 
         for (let i = 0; i < pattern.length; i++) {
           const key = `${partIndex}-${startPos + i}`;
-          indexToPattern.set(key, { patternId: pattern.id, color });
+          const pitch = pattern.notes[i]?.pitch || "";
+          indexToPattern.set(key, { patternId: pattern.id, color, pitch });
         }
       });
     }
@@ -279,6 +282,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
                   height: box.Size.height * unitToPixel * 10,
                   patternId: patternInfo.patternId,
                   color: patternInfo.color,
+                  pitch: patternInfo.pitch,
                 });
               }
 
@@ -377,12 +381,31 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               ? { borderTop: `12px solid ${marker.color}` }
               : { borderBottom: `12px solid ${marker.color}` }),
             pointerEvents: "none",
-            zIndex: 12,
           }}
           title={`${marker.type === "start" ? "Start" : "End"} of pattern ${
             marker.patternId + 1
           }, occurrence ${marker.occurrenceIndex + 1}`}
         />
+      ))}
+      {/* Render note tooltips for highlighted notes */}
+      {notePositions.map((pos, i) => (
+        <Tooltip key={`note-tooltip-${i}`}>
+          <TooltipTrigger asChild>
+            <div
+              style={{
+                position: "absolute",
+                left: pos.x - pos.width / 2,
+                top: pos.y,
+                width: pos.width,
+                height: pos.height,
+                background: "transparent",
+                cursor: "default",
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{pos.pitch.replace(/[0-9]$/, "")}</TooltipContent>
+        </Tooltip>
       ))}
       {/* Render custom React overlays at note positions */}
       {renderOverlay &&
