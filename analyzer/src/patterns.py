@@ -34,6 +34,79 @@ def extract_note_signature(n) -> tuple:
     return (n.pitch.midi, n.quarterLength)
 
 
+def _find_lcp_length(sig1: tuple, sig2: tuple) -> int:
+    """Find longest common prefix length between two signatures."""
+    lcp_len = 0
+    min_len = min(len(sig1), len(sig2))
+    while lcp_len < min_len and sig1[lcp_len] == sig2[lcp_len]:
+        lcp_len += 1
+    return lcp_len
+
+
+def _extract_common_prefixes(
+    patterns: dict[tuple, list[int]],
+    min_length: int
+) -> dict[tuple, list[int]]:
+    """Extract common prefixes as separate patterns, deduplicating overlaps.
+
+    When patterns share a common prefix >= min_length, extract the prefix
+    as its own pattern and remove patterns subsumed by it.
+    """
+    if not patterns:
+        return {}
+
+    pattern_list = list(patterns.keys())
+    n = len(pattern_list)
+
+    # Collect all common prefixes and their positions
+    prefix_positions: dict[tuple, set[int]] = {}
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            lcp_len = _find_lcp_length(pattern_list[i], pattern_list[j])
+            if lcp_len >= min_length:
+                prefix = pattern_list[i][:lcp_len]
+                if prefix not in prefix_positions:
+                    prefix_positions[prefix] = set()
+                # Add all positions where this prefix occurs
+                prefix_positions[prefix].update(patterns[pattern_list[i]])
+                prefix_positions[prefix].update(patterns[pattern_list[j]])
+
+    if not prefix_positions:
+        return patterns
+
+    # Filter prefixes: keep only maximal ones (not subsumed by longer)
+    prefixes_sorted = sorted(prefix_positions.keys(), key=len, reverse=True)
+    maximal_prefixes: dict[tuple, set[int]] = {}
+
+    for prefix in prefixes_sorted:
+        # Check if this prefix is a prefix of any longer maximal prefix
+        is_subsumed = False
+        for longer in maximal_prefixes:
+            if len(longer) > len(prefix) and longer[:len(prefix)] == prefix:
+                is_subsumed = True
+                break
+        if not is_subsumed:
+            maximal_prefixes[prefix] = prefix_positions[prefix]
+
+    # Build result: start with maximal prefixes
+    result: dict[tuple, list[int]] = {
+        p: sorted(pos) for p, pos in maximal_prefixes.items()
+    }
+
+    # Add original patterns not subsumed by any prefix
+    for pattern, positions in patterns.items():
+        # Pattern subsumed if it starts with any maximal prefix
+        subsumed = any(
+            len(prefix) <= len(pattern) and pattern[:len(prefix)] == prefix
+            for prefix in maximal_prefixes
+        )
+        if not subsumed:
+            result[pattern] = positions
+
+    return result
+
+
 def _find_repeats_in_part(part: stream.Part, min_length: int = 4) -> list[Repeat]:
     """Find maximal exact repeated note sequences in a single part.
 
@@ -119,6 +192,9 @@ def _find_repeats_in_part(part: stream.Part, min_length: int = 4) -> list[Repeat
         )
         if not dominated:
             maximal[pattern] = positions
+
+    # Extract common prefixes to deduplicate overlapping patterns
+    maximal = _extract_common_prefixes(maximal, min_length)
 
     # Build Repeat objects
     repeats = []
