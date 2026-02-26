@@ -8,6 +8,7 @@ import { Pattern } from "../SheetMusicViewer";
 import { VisibilityToggle } from "../visibility-toggle/VisibilityToggle";
 import { useTimeSignature } from "../../context/TimeSignatureContext";
 import { usePlayback } from "../../context/PlaybackContext";
+import { PlayButton } from "./PlayButton";
 
 interface PatternItemProps {
   pattern: Pattern;
@@ -21,12 +22,8 @@ export const PatternItem: React.FC<PatternItemProps> = ({
   onToggle,
 }) => {
   const { beatsPerMeasure, timeSigDenominator } = useTimeSignature();
-  const {
-    playingPatternId,
-    startPlayback,
-    stopPlayback,
-    setPlayingBeatIndex,
-  } = usePlayback();
+  const { playingPatternId, startPlayback, stopPlayback, setPlayingBeatIndex } =
+    usePlayback();
 
   const color = getPatternColor(pattern.id);
   const displayNotes = pattern.notes.map((n) => n.pitch).join(" ");
@@ -77,21 +74,8 @@ export const PatternItem: React.FC<PatternItemProps> = ({
         </div>
       </div>
 
-      <button
-        className="play-button"
-        onClick={handlePlayStop}
-        title={isPlaying ? "Stop" : "Play pattern"}
-        aria-label={isPlaying ? "Stop" : "Play pattern"}
-      >
-        {isPlaying ? "■" : "▶"}
-      </button>
-
-      <VisibilityToggle
-        isVisible={isEnabled}
-        onToggle={onToggle}
-        showTooltip="Show pattern"
-        hideTooltip="Hide pattern"
-      />
+      <PlayButton isPlaying={isPlaying} onClick={handlePlayStop} />
+      <VisibilityToggle isVisible={isEnabled} onToggle={onToggle} />
     </div>
   );
 };
