@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 interface PlaybackContextValue {
   playingPatternId: number | null;
   playingBeatIndex: number | null;
+  tempo: number;
+  setTempo: (tempo: number) => void;
   startPlayback: (patternId: number) => void;
   stopPlayback: () => void;
   setPlayingBeatIndex: (index: number | null) => void;
@@ -13,6 +15,11 @@ const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [playingPatternId, setPlayingPatternId] = useState<number | null>(null);
   const [playingBeatIndex, setPlayingBeatIndexState] = useState<number | null>(null);
+  const [tempo, setTempoState] = useState(120);
+
+  const setTempo = useCallback((value: number) => {
+    setTempoState(Math.max(1, Math.min(300, value)));
+  }, []);
 
   const startPlayback = useCallback((patternId: number) => {
     setPlayingPatternId(patternId);
@@ -35,6 +42,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       value={{
         playingPatternId,
         playingBeatIndex,
+        tempo,
+        setTempo,
         startPlayback,
         stopPlayback,
         setPlayingBeatIndex,

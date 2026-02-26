@@ -22,8 +22,13 @@ export const PatternItem: React.FC<PatternItemProps> = ({
   onToggle,
 }) => {
   const { beatsPerMeasure, timeSigDenominator } = useTimeSignature();
-  const { playingPatternId, startPlayback, stopPlayback, setPlayingBeatIndex } =
-    usePlayback();
+  const {
+    playingPatternId,
+    tempo,
+    startPlayback,
+    stopPlayback,
+    setPlayingBeatIndex,
+  } = usePlayback();
 
   const color = getPatternColor(pattern.id);
   const displayNotes = pattern.notes.map((n) => n.pitch).join(" ");
@@ -48,6 +53,7 @@ export const PatternItem: React.FC<PatternItemProps> = ({
     // playPattern calls stopPlayback() synchronously first, which clears old state
     playPattern(pattern.notes, {
       patternId: pattern.id,
+      tempo,
       beatsPerMeasure,
       timeSigDenominator,
       onNotePlay: handleNotePlay,

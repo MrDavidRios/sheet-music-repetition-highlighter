@@ -6,6 +6,7 @@ import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/pattern-list/PatternList";
 import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { TempoInput } from "./components/TempoInput";
 import {
   TimeSignatureProvider,
   useTimeSignature,
@@ -217,6 +218,8 @@ function AppContent() {
         )}
 
         <div style={{ flex: 1 }} />
+
+        <TempoInput />
 
         <ThemeToggle
           darkMode={darkMode}

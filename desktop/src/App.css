@@ -61,6 +61,10 @@ body {
   color: var(--text-color);
 }
 
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
