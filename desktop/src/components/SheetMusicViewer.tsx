@@ -291,6 +291,12 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
                 container.scrollTop +
                 noteY * unitToPixel;
 
+              // Add/remove highlighted class on SVG element
+              const svgEl = vfnote?.attrs?.el as SVGElement | undefined;
+              if (svgEl) {
+                svgEl.classList.toggle("highlighted", !!patternInfo);
+              }
+
               if (patternInfo) {
                 positions.push({
                   index: noteIndex,

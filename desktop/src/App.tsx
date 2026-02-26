@@ -5,6 +5,9 @@ import { listen } from "@tauri-apps/api/event";
 import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/pattern-list/PatternList";
 import "./App.css";
+import { HalfMoonIcon } from "./assets/icons/HalfMoon";
+import { SeaAndSunIcon } from "./assets/icons/SeaAndSun";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 interface PartPatterns {
   part_index: number;
@@ -38,6 +41,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
 
@@ -49,6 +53,11 @@ function App() {
       unlisten.then((f) => f());
     };
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark", darkMode);
+    document.body.classList.toggle("light", !darkMode);
+  }, [darkMode]);
 
   // Combine all patterns for the viewer
   const allPatterns = useMemo(
@@ -163,7 +172,6 @@ function App() {
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        backgroundColor: "#f0f0f0",
       }}
     >
       {/* Header */}
@@ -203,15 +211,22 @@ function App() {
         {error && (
           <span style={{ fontSize: "14px", color: "#ff6b6b" }}>{error}</span>
         )}
+
+        <div style={{ flex: 1 }} />
+
+        <ThemeToggle
+          darkMode={darkMode}
+          onClick={() => setDarkMode(!darkMode)}
+        />
       </header>
 
       {/* Main content */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Sidebar */}
         <aside
+          className="sidebar"
           style={{
             width: "280px",
-            borderRight: "1px solid #ddd",
             display: "flex",
             flexDirection: "column",
           }}
@@ -221,7 +236,6 @@ function App() {
             style={{
               flex: 1,
               overflowY: "auto",
-              borderBottom: "1px solid #ddd",
             }}
           >
             <PatternList

@@ -1,6 +1,4 @@
 .visibility-toggle {
-  background-color: transparent;
-  border: none;
   width: 24px;
   height: 24px;
 
@@ -12,6 +10,8 @@
   cursor: pointer;
 
   transition: none;
+
+  color: var(--icon-color);
 }
 
 .visibility-toggle:hover {
@@ -21,8 +21,4 @@
 .visibility-toggle > svg {
   width: 16px;
   height: 16px;
-}
-
-.visibility-toggle > svg > path {
-  stroke: rgb(54, 54, 54);
 }

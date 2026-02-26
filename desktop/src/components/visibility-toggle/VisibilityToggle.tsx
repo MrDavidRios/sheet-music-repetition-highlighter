@@ -20,7 +20,10 @@ export const VisibilityToggle: React.FC<VisibilityToggleProps> = ({
 }) => {
   return (
     <Tooltip>
-      <TooltipTrigger className="visibility-toggle" onClick={onToggle}>
+      <TooltipTrigger
+        className="visibility-toggle icon-button"
+        onClick={onToggle}
+      >
         {isVisible ? <EyeIcon /> : <EyeIconClosed />}
       </TooltipTrigger>
       <TooltipContent>{isVisible ? hideTooltip : showTooltip}</TooltipContent>

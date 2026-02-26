@@ -4,6 +4,38 @@
   box-sizing: border-box;
 }
 
+body.light {
+  --bg-color: rgb(246, 246, 246);
+  --foreground-color: rgb(246, 246, 246);
+
+  --border-color: rgb(221, 221, 221);
+
+  --icon-color: rgb(54, 54, 54);
+  --icon-color-on-dark: rgb(122, 122, 122);
+
+  --text-color: black;
+  --note-color: rgb(84, 84, 84);
+}
+
+body.dark {
+  --bg-color: rgb(23, 23, 23);
+  --foreground-color: rgb(69, 69, 69);
+
+  --border-color: rgb(48, 48, 48);
+
+  --icon-color: rgb(122, 122, 122);
+  --icon-color-on-dark: rgb(122, 122, 122);
+
+  --text-color: rgb(186, 186, 186);
+  --note-color: rgb(84, 84, 84);
+}
+
+#osmdSvgPage1 *:not(.vf-stavenote.highlighted .vf-notehead *) {
+  stroke: var(--note-color);
+  fill: var(--note-color);
+  color: var(--note-color);
+}
+
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
@@ -13,7 +45,16 @@
 }
 
 body {
-  background-color: rgb(246, 246, 246);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.sidebar {
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar > div:first-child {
+  border-bottom: 1px solid var(--border-color);
 }
 
 button {
@@ -43,4 +84,29 @@ button:disabled {
 input[type="checkbox"] {
   width: 16px;
   height: 16px;
+}
+
+.icon-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  transition: none;
+  border: none;
+  background-color: transparent;
+}
+
+.icon-button:hover {
+  background-color: rgba(76, 76, 76, 0.2);
+}
+
+.theme-toggle {
+  color: var(--icon-color-on-dark);
+
+  width: 36px;
+  height: 36px;
+}
+
+.theme-toggle:hover {
+  filter: brightness(1.2);
 }
