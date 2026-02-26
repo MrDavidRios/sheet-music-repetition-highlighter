@@ -49,7 +49,7 @@ interface PatternRectangle {
   height: number;
   color: string;
   isStart: boolean; // First segment of occurrence (left border-radius)
-  isEnd: boolean;   // Last segment of occurrence (right border-radius)
+  isEnd: boolean; // Last segment of occurrence (right border-radius)
 }
 
 interface SheetMusicViewerProps {
@@ -58,6 +58,8 @@ interface SheetMusicViewerProps {
   patternColors: Map<number, string>;
   // Optional: render custom overlay at note positions
   renderOverlay?: (positions: NotePosition[]) => React.ReactNode;
+  onTimeSignatureChange?: (numerator: number, denominator: number) => void;
+  playingNotes?: Set<string> | null;
 }
 
 export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
@@ -65,10 +67,13 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   patterns,
   patternColors,
   renderOverlay,
+  onTimeSignatureChange,
+  playingNotes,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdContainerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
+  const noteElementsRef = useRef<Map<string, SVGElement>>(new Map());
   const [isLoaded, setIsLoaded] = useState(false);
   const [notePositions, setNotePositions] = useState<NotePosition[]>([]);
   const [patternRectangles, setPatternRectangles] = useState<
@@ -93,6 +98,15 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       .then(() => {
         osmd.render();
         setIsLoaded(true);
+
+        // Extract time signature
+        if (onTimeSignatureChange) {
+          const firstMeasure = osmd.Sheet?.SourceMeasures?.[0];
+          const timeSig = firstMeasure?.ActiveTimeSignature;
+          if (timeSig) {
+            onTimeSignatureChange(timeSig.Numerator, timeSig.Denominator);
+          }
+        }
       })
       .catch((err) => {
         console.error("Failed to load MusicXML:", err);
@@ -101,6 +115,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
 
     return () => {
       osmdRef.current = null;
+      noteElementsRef.current.clear();
       setIsLoaded(false);
     };
   }, [musicXml]);
@@ -307,6 +322,8 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               const svgEl = vfnote?.attrs?.el as SVGElement | undefined;
               if (svgEl) {
                 svgEl.classList.toggle("highlighted", !!patternInfo);
+                // Store element for playback highlighting
+                noteElementsRef.current.set(key, svgEl);
               }
 
               if (patternInfo) {
@@ -430,6 +447,13 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     });
   }, [applyColors, updateMarkerPositions]);
 
+  // Toggle "playing" class on notes during audio playback
+  useEffect(() => {
+    noteElementsRef.current.forEach((el, key) => {
+      el.classList.toggle("playing", playingNotes?.has(key) ?? false);
+    });
+  }, [playingNotes]);
+
   return (
     <div
       ref={containerRef}
@@ -468,7 +492,9 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               width: rect.width,
               height: rect.height,
               backgroundColor: rect.color,
-              borderRadius: `${rect.isStart ? radius : 0}px ${rect.isEnd ? radius : 0}px ${rect.isEnd ? radius : 0}px ${rect.isStart ? radius : 0}px`,
+              borderRadius: `${rect.isStart ? radius : 0}px ${
+                rect.isEnd ? radius : 0
+              }px ${rect.isEnd ? radius : 0}px ${rect.isStart ? radius : 0}px`,
               pointerEvents: "none",
               zIndex: 0,
             }}

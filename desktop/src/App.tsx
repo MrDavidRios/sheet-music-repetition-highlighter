@@ -6,6 +6,10 @@ import { SheetMusicViewer, Pattern } from "./components/SheetMusicViewer";
 import { PatternList } from "./components/pattern-list/PatternList";
 import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
+import {
+  TimeSignatureProvider,
+  useTimeSignature,
+} from "./context/TimeSignatureContext";
 
 interface PartPatterns {
   part_index: number;
@@ -28,7 +32,7 @@ interface Progress {
   message: string;
 }
 
-function App() {
+function AppContent() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [treblePatterns, setTreblePatterns] = useState<Pattern[]>([]);
   const [bassPatterns, setBassPatterns] = useState<Pattern[]>([]);
@@ -40,6 +44,8 @@ function App() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [playingNotes, setPlayingNotes] = useState<Set<string> | null>(null);
+  const { setTimeSignature } = useTimeSignature();
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
 
@@ -242,6 +248,7 @@ function App() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
+              onPlayingNotesChange={setPlayingNotes}
             />
           </div>
 
@@ -253,6 +260,7 @@ function App() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
+              onPlayingNotesChange={setPlayingNotes}
             />
           </div>
         </aside>
@@ -263,10 +271,20 @@ function App() {
             musicXml={musicXml}
             patterns={filteredPatterns}
             patternColors={patternColors}
+            onTimeSignatureChange={setTimeSignature}
+            playingNotes={playingNotes}
           />
         </main>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <TimeSignatureProvider>
+      <AppContent />
+    </TimeSignatureProvider>
   );
 }
 

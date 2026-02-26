@@ -36,6 +36,13 @@ body.dark {
   color: var(--note-color);
 }
 
+/* Playing note highlight */
+.vf-stavenote.playing .vf-notehead path {
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
+  transform-origin: center;
+  transform: scale(1.15);
+}
+
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;

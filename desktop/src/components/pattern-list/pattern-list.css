@@ -47,3 +47,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.pattern-item .play-button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--icon-color);
+  flex-shrink: 0;
+}
+
+.pattern-item .play-button:hover {
+  background-color: rgba(76, 76, 76, 0.2);
+}

@@ -10,6 +10,7 @@ interface Props {
   enabledPatterns: Set<number>;
   onTogglePattern: (patternId: number) => void;
   onToggleAllPatterns: (partIndex: number) => void;
+  onPlayingNotesChange?: (keys: Set<string> | null) => void;
 }
 
 export function PatternList({
@@ -18,6 +19,7 @@ export function PatternList({
   enabledPatterns,
   onTogglePattern,
   onToggleAllPatterns,
+  onPlayingNotesChange,
 }: Props) {
   const anyVisible = patterns.some((p) => enabledPatterns.has(p.id));
 
@@ -48,6 +50,7 @@ export function PatternList({
               pattern={pattern}
               isEnabled={enabledPatterns.has(pattern.id)}
               onToggle={() => onTogglePattern(pattern.id)}
+              onPlayingNotesChange={onPlayingNotesChange}
             />
           ))}
         </div>
