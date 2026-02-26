@@ -8,11 +8,15 @@ import "./visibility-toggle.css";
 interface VisibilityToggleProps {
   isVisible: boolean;
   onToggle: () => void;
+  showTooltip?: string;
+  hideTooltip?: string;
 }
 
 export const VisibilityToggle: React.FC<VisibilityToggleProps> = ({
   isVisible,
   onToggle,
+  showTooltip,
+  hideTooltip,
 }) => {
   return (
     <Tooltip>
@@ -23,7 +27,9 @@ export const VisibilityToggle: React.FC<VisibilityToggleProps> = ({
         {isVisible ? <EyeIcon /> : <EyeIconClosed />}
       </TooltipTrigger>
       <TooltipContent>
-        {isVisible ? "Hide pattern" : "Show pattern"}
+        {isVisible
+          ? hideTooltip ?? "Hide pattern"
+          : showTooltip ?? "Show pattern"}
       </TooltipContent>
     </Tooltip>
   );
