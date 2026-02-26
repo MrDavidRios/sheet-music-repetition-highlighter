@@ -1,52 +1,57 @@
 import React from "react";
 import { getPatternColor } from "../../utils/color";
-import { playPattern, stopPlayback } from "../../utils/audio";
+import {
+  playPattern,
+  stopPlayback as stopAudioPlayback,
+} from "../../utils/audio";
 import { Pattern } from "../SheetMusicViewer";
 import { VisibilityToggle } from "../visibility-toggle/VisibilityToggle";
 import { useTimeSignature } from "../../context/TimeSignatureContext";
+import { usePlayback } from "../../context/PlaybackContext";
 
 interface PatternItemProps {
   pattern: Pattern;
   isEnabled: boolean;
   onToggle: () => void;
-  playingPatternId: number | null;
-  onPlayStart?: (patternId: number) => void;
-  onPlayingNotesChange?: (keys: Set<string> | null) => void;
 }
 
 export const PatternItem: React.FC<PatternItemProps> = ({
   pattern,
   isEnabled,
   onToggle,
-  playingPatternId,
-  onPlayStart,
-  onPlayingNotesChange,
 }) => {
   const { beatsPerMeasure, timeSigDenominator } = useTimeSignature();
+  const {
+    playingPatternId,
+    startPlayback,
+    stopPlayback,
+    setPlayingNotes,
+  } = usePlayback();
+
   const color = getPatternColor(pattern.id);
   const displayNotes = pattern.notes.map((n) => n.pitch).join(" ");
   const isPlaying = playingPatternId === pattern.id;
 
   const handlePlayStop = () => {
     if (isPlaying) {
+      stopAudioPlayback();
       stopPlayback();
       return;
     }
 
     // Map note indices to "partIndex-noteIndex" keys for all occurrences
     const handleNotePlay = (noteIndices: number[]) => {
-      if (!onPlayingNotesChange) return;
       const keys = new Set<string>();
       for (const startPos of pattern.positions) {
         for (const idx of noteIndices) {
           keys.add(`${pattern.partIndex}-${startPos + idx}`);
         }
       }
-      onPlayingNotesChange(keys);
+      setPlayingNotes(keys);
     };
 
     const handleEnd = () => {
-      onPlayingNotesChange?.(null);
+      setPlayingNotes(null);
     };
 
     // playPattern calls stopPlayback() synchronously first, which clears old state
@@ -59,7 +64,7 @@ export const PatternItem: React.FC<PatternItemProps> = ({
     });
 
     // Notify after playPattern starts (old callback already cleared)
-    onPlayStart?.(pattern.id);
+    startPlayback(pattern.id);
   };
 
   return (

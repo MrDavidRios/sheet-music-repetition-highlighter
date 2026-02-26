@@ -9,6 +9,7 @@ import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
 import { getPatternColor, getPatternRectColor } from "../utils/color";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip/Tooltip";
+import { usePlayback } from "../context/PlaybackContext";
 
 export interface NoteLocator {
   index: number;
@@ -59,7 +60,6 @@ interface SheetMusicViewerProps {
   // Optional: render custom overlay at note positions
   renderOverlay?: (positions: NotePosition[]) => React.ReactNode;
   onTimeSignatureChange?: (numerator: number, denominator: number) => void;
-  playingNotes?: Set<string> | null;
 }
 
 export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
@@ -68,8 +68,8 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   patternColors,
   renderOverlay,
   onTimeSignatureChange,
-  playingNotes,
 }) => {
+  const { playingNotes } = usePlayback();
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdContainerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);

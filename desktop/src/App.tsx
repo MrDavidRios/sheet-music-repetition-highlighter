@@ -10,6 +10,7 @@ import {
   TimeSignatureProvider,
   useTimeSignature,
 } from "./context/TimeSignatureContext";
+import { PlaybackProvider } from "./context/PlaybackContext";
 
 interface PartPatterns {
   part_index: number;
@@ -44,17 +45,7 @@ function AppContent() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [darkMode, setDarkMode] = useState(false);
-  const [playingNotes, setPlayingNotes] = useState<Set<string> | null>(null);
-  const [playingPatternId, setPlayingPatternId] = useState<number | null>(null);
   const { setTimeSignature } = useTimeSignature();
-
-  // Wrapper to track playing pattern ID alongside playing notes
-  const handlePlayingNotesChange = (keys: Set<string> | null) => {
-    setPlayingNotes(keys);
-    if (keys === null) {
-      setPlayingPatternId(null);
-    }
-  };
 
   const patternColors = useMemo(() => new Map<number, string>(), []);
 
@@ -257,9 +248,6 @@ function AppContent() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
-              playingPatternId={playingPatternId}
-              onPlayStart={setPlayingPatternId}
-              onPlayingNotesChange={handlePlayingNotesChange}
             />
           </div>
 
@@ -271,9 +259,6 @@ function AppContent() {
               enabledPatterns={enabledPatterns}
               onTogglePattern={handleTogglePattern}
               onToggleAllPatterns={handleToggleAllPatternsOfType}
-              playingPatternId={playingPatternId}
-              onPlayStart={setPlayingPatternId}
-              onPlayingNotesChange={handlePlayingNotesChange}
             />
           </div>
         </aside>
@@ -285,7 +270,6 @@ function AppContent() {
             patterns={filteredPatterns}
             patternColors={patternColors}
             onTimeSignatureChange={setTimeSignature}
-            playingNotes={playingNotes}
           />
         </main>
       </div>
@@ -296,7 +280,9 @@ function AppContent() {
 function App() {
   return (
     <TimeSignatureProvider>
-      <AppContent />
+      <PlaybackProvider>
+        <AppContent />
+      </PlaybackProvider>
     </TimeSignatureProvider>
   );
 }
