@@ -37,6 +37,7 @@ export interface NotePosition {
   patternId: number;
   color: string;
   pitch: string;
+  pitches: string[]; // All pitches at this beat (chord tones), from OSMD
 }
 
 // Rectangle overlay for pattern occurrence (per system segment)
@@ -289,6 +290,15 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
             const key = `${staffIndex}-${noteIndex}`;
             const patternInfo = patternNoteIndices.get(key);
 
+            // Fixed notehead size (consistent hitboxes)
+            const noteheadSize = unitToPixel * 10 * 2;
+
+            // Collect all non-rest notes to build a unified bounding box and pitch list
+            let minY = Infinity;
+            let maxY = -Infinity;
+            let entryX: number | null = null;
+            const pitches: string[] = [];
+
             for (const graphicalNote of voiceEntry.notes) {
               if (graphicalNote.sourceNote.isRest()) continue;
 
@@ -299,11 +309,6 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               const gn = graphicalNote as any;
               const vfnote = gn.vfnote?.[0];
               const noteHead = vfnote?.note_heads?.[0];
-
-              // Fixed notehead size (consistent hitboxes)
-              const noteheadSize = unitToPixel * 10 * 2;
-              const width = noteheadSize;
-              const height = noteheadSize;
 
               // Use VexFlow notehead coords if available, fallback to OSMD
               const noteX = noteHead?.x ?? box.AbsolutePosition.x * 10;
@@ -321,6 +326,21 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
                 container.scrollTop +
                 noteY * unitToPixel;
 
+              // Track first note's x for the entry position
+              if (entryX === null) entryX = x;
+
+              // Build unified bounding box using absolute top of each notehead
+              const noteTop = y - noteheadSize / 2;
+              minY = Math.min(minY, noteTop);
+              maxY = Math.max(maxY, noteTop + noteheadSize);
+
+              // Collect pitch string (deduplicated)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const pitchStr = (graphicalNote.sourceNote.Pitch as any)?.ToStringShort?.() as string | undefined;
+              if (pitchStr && !pitches.includes(pitchStr)) {
+                pitches.push(pitchStr);
+              }
+
               // Add/remove highlighted class on SVG element
               const svgEl = vfnote?.attrs?.el as SVGElement | undefined;
               if (svgEl) {
@@ -328,30 +348,31 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
                 // Store element for playback highlighting
                 noteElementsRef.current.set(key, svgEl);
               }
+            }
 
-              if (patternInfo) {
-                positions.push({
-                  index: noteIndex,
-                  x,
-                  y,
-                  width,
-                  height,
-                  patternId: patternInfo.patternId,
-                  color: patternInfo.color,
-                  pitch: patternInfo.pitch,
-                });
+            if (entryX !== null && patternInfo) {
+              positions.push({
+                index: noteIndex,
+                x: entryX,
+                y: minY,
+                width: noteheadSize,
+                height: maxY - minY,
+                patternId: patternInfo.patternId,
+                color: patternInfo.color,
+                pitch: patternInfo.pitch,
+                pitches,
+              });
 
-                // Collect for rectangle computation
-                collectedNotes.push({
-                  patternId: patternInfo.patternId,
-                  occurrenceIndex: patternInfo.occurrenceIndex,
-                  systemId,
-                  x,
-                  width,
-                  staffTop,
-                  staffHeight,
-                });
-              }
+              // Collect for rectangle computation
+              collectedNotes.push({
+                patternId: patternInfo.patternId,
+                occurrenceIndex: patternInfo.occurrenceIndex,
+                systemId,
+                x: entryX,
+                width: noteheadSize,
+                staffTop,
+                staffHeight,
+              });
             }
 
             noteIndex++;
@@ -518,14 +539,18 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               style={{
                 position: "absolute",
                 left: pos.x - pos.width * 0.2,
-                top: pos.y - pos.height / 2,
+                top: pos.y,
                 width: pos.width,
                 height: pos.height,
                 cursor: "default",
               }}
             />
           </TooltipTrigger>
-          <TooltipContent>{pos.pitch.replace(/[0-9]$/, "")}</TooltipContent>
+          <TooltipContent>
+            {(pos.pitches.length > 0 ? pos.pitches : [pos.pitch])
+              .map(p => p.replace(/\d+$/, ""))
+              .join(" / ")}
+          </TooltipContent>
         </Tooltip>
       ))}
       {/* Render custom React overlays at note positions */}
