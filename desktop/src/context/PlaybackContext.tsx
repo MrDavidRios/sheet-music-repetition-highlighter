@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+
+const TEMPO_STORAGE_KEY = "smrh_tempo";
 
 interface PlaybackContextValue {
   playingPatternId: number | null;
@@ -12,10 +14,23 @@ interface PlaybackContextValue {
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
+function loadSavedTempo(): number {
+  const saved = localStorage.getItem(TEMPO_STORAGE_KEY);
+  if (saved) {
+    const parsed = parseInt(saved, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 300) return parsed;
+  }
+  return 120;
+}
+
 export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [playingPatternId, setPlayingPatternId] = useState<number | null>(null);
   const [playingBeatIndex, setPlayingBeatIndexState] = useState<number | null>(null);
-  const [tempo, setTempoState] = useState(120);
+  const [tempo, setTempoState] = useState(loadSavedTempo);
+
+  useEffect(() => {
+    localStorage.setItem(TEMPO_STORAGE_KEY, String(tempo));
+  }, [tempo]);
 
   const setTempo = useCallback((value: number) => {
     setTempoState(Math.max(1, Math.min(300, value)));

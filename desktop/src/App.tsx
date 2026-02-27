@@ -34,6 +34,8 @@ interface Progress {
   message: string;
 }
 
+const LAST_FILE_STORAGE_KEY = "smrh_last_file_path";
+
 function AppContent() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [treblePatterns, setTreblePatterns] = useState<Pattern[]>([]);
@@ -75,26 +77,12 @@ function AppContent() {
     [allPatterns, enabledPatterns]
   );
 
-  async function handleOpenFile() {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: "Music Document",
-          extensions: ["pdf", "jpg", "png", "musicxml", "mxl"],
-        },
-      ],
-    });
-
-    if (!selected) return;
-
-    const path = typeof selected === "string" ? selected : selected;
+  async function loadFile(path: string) {
     setIsLoading(true);
     setError(null);
     setProgress(null);
 
     try {
-      // Read the MusicXML file
       const filename = path.split("/").pop() || path;
       const ext = path.match(/\.([^.]+)$/)?.[1]?.toLowerCase();
       const isFileMusicXml = ext === "musicxml" || ext === "xml";
@@ -128,6 +116,7 @@ function AppContent() {
         ...result.bass.patterns.map((p) => p.id),
       ];
       setEnabledPatterns(new Set(allIds));
+      localStorage.setItem(LAST_FILE_STORAGE_KEY, path);
     } catch (err) {
       setError(String(err));
       setMusicXml(null);
@@ -137,6 +126,31 @@ function AppContent() {
       setIsLoading(false);
       setProgress(null);
     }
+  }
+
+  useEffect(() => {
+    const savedPath = localStorage.getItem(LAST_FILE_STORAGE_KEY);
+    if (savedPath) {
+      loadFile(savedPath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleOpenFile() {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Music Document",
+          extensions: ["pdf", "jpg", "png", "musicxml", "mxl"],
+        },
+      ],
+    });
+
+    if (!selected) return;
+
+    const path = typeof selected === "string" ? selected : selected;
+    await loadFile(path);
   }
 
   function handleTogglePattern(patternId: number) {
