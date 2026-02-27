@@ -2,12 +2,18 @@
 
 homr doesn't bundle ONNX models in pip package. Download manually from GitHub releases.
 
+This process has also been automated in the ./download_homr_models.sh script. You can run that instead.
+
 ## Find model versions
 
 Check hardcoded model names in installed package:
 
 ```bash
-grep -r "model_name = " $(python -c "import homr; print(homr.__file__.rsplit('/', 1)[0])")
+# Segnet model name (segmentation)
+grep "model_name = " $(python -c "import homr.segmentation.config as c; print(c.__file__)")
+
+# Encoder/decoder model name (transformer)
+grep "model_name = " $(python -c "import homr.transformer.configs as c; print(c.__file__)")
 ```
 
 ## Download models
