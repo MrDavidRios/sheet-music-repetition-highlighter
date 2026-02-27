@@ -33,7 +33,7 @@ bun install >> "$SETUP_LOG" 2>&1
 LOG_FILE="$WORKTREE_PATH/tauri-dev.log"
 step "Starting tauri dev server (logs at tauri-dev.log)..."
 export WORKTREE_NAME="$NAME"
-(setsid bun run tauri dev > "$LOG_FILE" 2>&1 < /dev/null &)
+nohup bun run tauri dev > "$LOG_FILE" 2>&1 &
 
 step "Done."
 echo "$WORKTREE_PATH"
