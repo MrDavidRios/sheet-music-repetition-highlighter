@@ -7,27 +7,33 @@ CWD=$(echo "$INPUT" | jq -r '.cwd')
 
 REPO_ROOT=$(git -C "$CWD" rev-parse --show-toplevel)
 WORKTREE_PATH="$REPO_ROOT/.claude/worktrees/$NAME"
+SETUP_LOG="$REPO_ROOT/.claude/worktrees/$NAME-setup.log"
 
-echo "Creating worktree '$NAME' at $WORKTREE_PATH..." >&2
-git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" >&2
+step() { echo "[worktree setup] $*" | tee -a "$SETUP_LOG"; }
+trap 'echo "[worktree setup] FAILED at line $LINENO — see $SETUP_LOG" | tee -a "$SETUP_LOG"' ERR
 
-echo "Running uv sync in analyzer..." >&2
+step "Creating worktree '$NAME'..."
+git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" >> "$SETUP_LOG" 2>&1
+
+step "Running uv sync in analyzer..."
 cd "$WORKTREE_PATH/analyzer"
-uv sync >&2
+uv sync >> "$SETUP_LOG" 2>&1
+export PATH="$WORKTREE_PATH/analyzer/.venv/bin:$PATH"
 
-echo "Downloading homr ONNX models..." >&2
-bash download_homr_models.sh >&2
+step "Downloading homr ONNX models..."
+bash download_homr_models.sh >> "$SETUP_LOG" 2>&1
 
-echo "Building analyzer..." >&2
-bash build.sh >&2
+step "Building analyzer..."
+bash build.sh >> "$SETUP_LOG" 2>&1
 
-echo "Running bun install in desktop..." >&2
+step "Running bun install in desktop..."
 cd "$WORKTREE_PATH/desktop"
-bun install >&2
+bun install >> "$SETUP_LOG" 2>&1
 
 LOG_FILE="$WORKTREE_PATH/tauri-dev.log"
-echo "Starting tauri dev server (logs: $LOG_FILE)..." >&2
+step "Starting tauri dev server (logs at tauri-dev.log)..."
 export WORKTREE_NAME="$NAME"
 nohup bun run tauri dev > "$LOG_FILE" 2>&1 &
 
+step "Done."
 echo "$WORKTREE_PATH"

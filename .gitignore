@@ -26,3 +26,6 @@ analyzer/test-images
 # Binary builds
 analyzer/build
 desktop/src-tauri/binaries
+
+# Claude
+.claude/worktrees
