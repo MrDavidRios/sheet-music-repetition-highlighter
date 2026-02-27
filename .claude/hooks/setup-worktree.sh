@@ -15,6 +15,9 @@ echo "Running uv sync in analyzer..." >&2
 cd "$WORKTREE_PATH/analyzer"
 uv sync >&2
 
+echo "Downloading homr ONNX models..." >&2
+bash download_homr_models.sh >&2
+
 echo "Building analyzer..." >&2
 bash build.sh >&2
 
@@ -24,6 +27,7 @@ bun install >&2
 
 LOG_FILE="$WORKTREE_PATH/tauri-dev.log"
 echo "Starting tauri dev server (logs: $LOG_FILE)..." >&2
+export WORKTREE_NAME="$NAME"
 nohup bun run tauri dev > "$LOG_FILE" 2>&1 &
 
 echo "$WORKTREE_PATH"

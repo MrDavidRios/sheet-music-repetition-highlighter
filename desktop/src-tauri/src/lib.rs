@@ -137,6 +137,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            #[cfg(debug_assertions)]
+            if let Ok(worktree) = std::env::var("WORKTREE_NAME") {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_title(&format!("Music Repetition Highlighter [{}]", worktree));
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![analyze_music, read_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
