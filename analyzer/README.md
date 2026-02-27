@@ -7,7 +7,7 @@ Detects repeated note patterns in MusicXML files.
 ```bash
 # Install deps (if not already)
 uv sync
-uv pip install pyinstaller
+uv add pyinstaller
 
 # Build and copy to Tauri
 ./build.sh
