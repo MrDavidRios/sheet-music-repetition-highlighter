@@ -47,6 +47,7 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [convertedMusicXmlPath, setConvertedMusicXmlPath] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const { setTimeSignature } = useTimeSignature();
 
@@ -81,6 +82,7 @@ function AppContent() {
     setIsLoading(true);
     setError(null);
     setProgress(null);
+    setConvertedMusicXmlPath(null);
 
     try {
       const filename = path.split("/").pop() || path;
@@ -108,6 +110,7 @@ function AppContent() {
 
       if (!isFileMusicXml) {
         setMusicXml(result.musicxml_content);
+        setConvertedMusicXmlPath(result.file);
       }
 
       // Enable all patterns by default
@@ -225,6 +228,15 @@ function AppContent() {
 
         {fileName && (
           <span style={{ fontSize: "14px", color: "#aaa" }}>{fileName}</span>
+        )}
+
+        {convertedMusicXmlPath && (
+          <button
+            onClick={() => invoke("reveal_in_finder", { path: convertedMusicXmlPath })}
+            style={{ padding: "8px 16px", cursor: "pointer" }}
+          >
+            Show in Finder
+          </button>
         )}
 
         {error && (

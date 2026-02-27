@@ -131,6 +131,14 @@ async fn read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
 }
 
+#[tauri::command]
+async fn reveal_in_finder(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .reveal_item_in_dir(&path)
+        .map_err(|e| format!("Failed to reveal in Finder: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -146,7 +154,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![analyze_music, read_file])
+        .invoke_handler(tauri::generate_handler![analyze_music, read_file, reveal_in_finder])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
