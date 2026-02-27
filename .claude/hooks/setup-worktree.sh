@@ -9,11 +9,11 @@ REPO_ROOT=$(git -C "$CWD" rev-parse --show-toplevel)
 WORKTREE_PATH="$REPO_ROOT/.claude/worktrees/$NAME"
 SETUP_LOG="$REPO_ROOT/.claude/worktrees/$NAME-setup.log"
 
-step() { echo "[worktree setup] $*" | tee -a "$SETUP_LOG"; }
-trap 'echo "[worktree setup] FAILED at line $LINENO — see $SETUP_LOG" | tee -a "$SETUP_LOG"' ERR
+step() { echo "[worktree setup] $*" | tee -a "$SETUP_LOG" >&2; }
+trap 'echo "[worktree setup] FAILED at line $LINENO — see $SETUP_LOG" | tee -a "$SETUP_LOG" >&2' ERR
 
 step "Creating worktree '$NAME'..."
-git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" >> "$SETUP_LOG" 2>&1
+git -C "$REPO_ROOT" worktree add -B "$NAME" "$WORKTREE_PATH" HEAD >> "$SETUP_LOG" 2>&1
 
 step "Running uv sync in analyzer..."
 cd "$WORKTREE_PATH/analyzer"
