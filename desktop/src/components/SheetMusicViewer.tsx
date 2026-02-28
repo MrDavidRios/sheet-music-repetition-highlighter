@@ -522,9 +522,8 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               width: rect.width,
               height: rect.height,
               backgroundColor: rect.color,
-              borderRadius: `${rect.isStart ? radius : 0}px ${
-                rect.isEnd ? radius : 0
-              }px ${rect.isEnd ? radius : 0}px ${rect.isStart ? radius : 0}px`,
+              borderRadius: `${rect.isStart ? radius : 0}px ${rect.isEnd ? radius : 0
+                }px ${rect.isEnd ? radius : 0}px ${rect.isStart ? radius : 0}px`,
               pointerEvents: "none",
               zIndex: 0,
             }}
@@ -532,17 +531,21 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
         );
       })}
       {/* Render note tooltips for highlighted notes */}
-      {notePositions.map((pos, i) => (
-        <Tooltip key={`note-tooltip-${i}`}>
+      {notePositions.map((pos, i) => {
+        const height = pos.pitches.length > 1 ? pos.height * (pos.pitches.length) / 2 : pos.height
+        const top = pos.pitches.length > 1 ? pos.y - height / 2 : pos.y
+
+        return <Tooltip key={`note-tooltip-${i}`}>
           <TooltipTrigger asChild>
             <div
               style={{
                 position: "absolute",
                 left: pos.x - pos.width * 0.2,
-                top: pos.y,
+                top,
                 width: pos.width,
-                height: pos.height,
+                height,
                 cursor: "default",
+                backgroundColor: "rgba(0, 0, 0, 0.5)"
               }}
             />
           </TooltipTrigger>
@@ -552,7 +555,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
               .join(" / ")}
           </TooltipContent>
         </Tooltip>
-      ))}
+      })}
       {/* Render custom React overlays at note positions */}
       {renderOverlay &&
         notePositions.length > 0 &&
